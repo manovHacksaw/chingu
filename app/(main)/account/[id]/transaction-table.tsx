@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useMemo, FC } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { format } from 'date-fns'
-import { ArrowUpDown, Clock, MoreHorizontal, Search, Filter, Download, Trash2, Edit, ArrowUpRight, ArrowDownLeft, Calendar, DollarSign } from 'lucide-react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useState, useMemo, type FC, useEffect } from "react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { format } from "date-fns"
+import { ArrowUpDown, Clock, MoreHorizontal, Search, Filter, Download, Trash2, Edit, ArrowUpRight, ArrowDownLeft, Calendar, DollarSign, AlertTriangle, X } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -16,18 +16,22 @@ import {
   DropdownMenuContent,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useRouter } from 'next/navigation'
-import { useFetch } from '@/hooks/use-fetch'
-import { deleteTransaction } from '@/actions/transactions'
-import { toast } from 'sonner'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { deleteTransaction, bulkDeleteTransaction } from "@/actions/transactions"
+import { categoryColors } from "@/data/categories"
 
 interface Transaction {
   id: string
@@ -35,11 +39,15 @@ interface Transaction {
   description: string
   category: string
   amount: number
-  type: 'INCOME' | 'EXPENSE'
+  type: "INCOME" | "EXPENSE"
   isRecurring: boolean
-  recurringInterval?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | null
+  recurringInterval?: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | null
   nextRecurringDate?: string | Date | null
   lastProcessed?: string | Date | null
+  account?: {
+    name: string
+    type: string
+  }
 }
 
 interface TransactionTableProps {
@@ -47,88 +55,104 @@ interface TransactionTableProps {
 }
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(amount)
 }
 
 const RECURRING_INTERVALS: Record<string, string> = {
-  DAILY: 'Daily',
-  MONTHLY: 'Monthly',
-  WEEKLY: 'Weekly',
-  YEARLY: 'Yearly',
-}
-
-const categoryColors: Record<string, string> = {
-  food: '#ef4444',
-  transport: '#3b82f6',
-  entertainment: '#8b5cf6',
-  shopping: '#f59e0b',
-  utilities: '#10b981',
-  healthcare: '#ec4899',
-  education: '#6366f1',
-  other: '#6b7280',
+  DAILY: "Daily",
+  MONTHLY: "Monthly",
+  WEEKLY: "Weekly",
+  YEARLY: "Yearly",
 }
 
 const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Transaction
-    direction: 'ascending' | 'descending'
-  } | null>({ key: 'date', direction: 'descending' })
-  
+    direction: "ascending" | "descending"
+  } | null>({ key: "date", direction: "descending" })
+
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
-  const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [recurringFilter, setRecurringFilter] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+  const [recurringFilter, setRecurringFilter] = useState<string>("all")
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+
+  //pagination states
+  const [currentPage, setCurrentPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+
 
   const router = useRouter()
-  const { fn: deleteTransactionFn, loading: deleteTransactionLoading } = useFetch(deleteTransaction)
 
   // Get unique categories for filter
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(transactions.map(t => t.category))]
+    const uniqueCategories = [...new Set(transactions.map((t) => t.category))]
     return uniqueCategories.sort()
   }, [transactions])
 
   // Filter and sort transactions
   const filteredAndSortedTransactions = useMemo(() => {
-    let filtered = transactions.filter(transaction => {
-      const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.category.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter
-      const matchesType = typeFilter === 'all' || transaction.type === typeFilter
-      const matchesRecurring = recurringFilter === 'all' || 
-                              (recurringFilter === 'recurring' && transaction.isRecurring) ||
-                              (recurringFilter === 'one-time' && !transaction.isRecurring)
+    const filtered = transactions.filter((transaction) => {
+      const matchesSearch =
+        transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (transaction.account?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = categoryFilter === "all" || transaction.category === categoryFilter
+      const matchesType = typeFilter === "all" || transaction.type === typeFilter
+      const matchesRecurring =
+        recurringFilter === "all" ||
+        (recurringFilter === "recurring" && transaction.isRecurring) ||
+        (recurringFilter === "one-time" && !transaction.isRecurring)
 
       return matchesSearch && matchesCategory && matchesType && matchesRecurring
     })
+
+    // const totalPages = Math.ceil(filteredAndSortedTransactions.length / itemsPerPage);
 
     if (sortConfig !== null) {
       filtered.sort((a, b) => {
         const valA = a[sortConfig.key]
         const valB = b[sortConfig.key]
-        if (valA < valB) return sortConfig.direction === 'ascending' ? -1 : 1
-        if (valA > valB) return sortConfig.direction === 'ascending' ? 1 : -1
+        if (valA < valB) return sortConfig.direction === "ascending" ? -1 : 1
+        if (valA > valB) return sortConfig.direction === "ascending" ? 1 : -1
         return 0
       })
     }
 
     return filtered
   }, [transactions, sortConfig, searchTerm, categoryFilter, typeFilter, recurringFilter])
+  // Calculate total pages
+const totalPages = Math.ceil(filteredAndSortedTransactions.length / itemsPerPage)
 
+// Get the transactions for the current page
+const paginatedTransactions = useMemo(() => {
+  const startIndex = currentPage * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  return filteredAndSortedTransactions.slice(startIndex, endIndex)
+}, [filteredAndSortedTransactions, currentPage, itemsPerPage])
+
+useEffect(() => {
+  // Reset to the first page whenever filters change
+  setCurrentPage(0)
+}, [searchTerm, categoryFilter, typeFilter, recurringFilter, itemsPerPage])
   const handleSort = (key: keyof Transaction) => {
-    let direction: 'ascending' | 'descending' = 'ascending'
-    if (sortConfig?.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending'
+    let direction: "ascending" | "descending" = "ascending"
+    if (sortConfig?.key === key && sortConfig.direction === "ascending") {
+      direction = "descending"
     }
     setSortConfig({ key, direction })
   }
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedRows(checked ? new Set(filteredAndSortedTransactions.map(t => t.id)) : new Set())
+    setSelectedRows(checked ? new Set(filteredAndSortedTransactions.map((t) => t.id)) : new Set())
   }
 
   const handleSelectRow = (id: string, checked: boolean) => {
@@ -138,33 +162,80 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
     setSelectedRows(newSelection)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
+    setTransactionToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleBulkDeleteClick = () => {
+    if (selectedRows.size === 0) return
+    setBulkDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!transactionToDelete) return
+
+    setDeleteLoading(transactionToDelete)
     try {
-      await deleteTransactionFn(id)
-      toast.success('Transaction deleted successfully!')
+      const result = await deleteTransaction(transactionToDelete)
+      if (result.success) {
+        toast.success("🎉 Transaction deleted successfully!", {
+          description: "The transaction has been removed from your account.",
+        })
+      } else {
+        toast.error("Failed to delete transaction", {
+          description: result.error || "Please try again.",
+        })
+      }
     } catch (error) {
-      toast.error('Failed to delete transaction')
+      toast.error("Failed to delete transaction", {
+        description: "An unexpected error occurred.",
+      })
+    } finally {
+      setDeleteLoading(null)
+      setDeleteDialogOpen(false)
+      setTransactionToDelete(null)
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDeleteConfirm = async () => {
     if (selectedRows.size === 0) return
-    
+
+    setBulkDeleteLoading(true)
     try {
-      await Promise.all([...selectedRows].map(id => deleteTransactionFn(id)))
-      toast.success(`${selectedRows.size} transactions deleted successfully!`)
-      setSelectedRows(new Set())
+      const result = await bulkDeleteTransaction([...selectedRows])
+      if (result.success) {
+        toast.success(`🎉 ${selectedRows.size} transactions deleted successfully!`, {
+          description: "The selected transactions have been removed from your accounts.",
+        })
+        setSelectedRows(new Set())
+      } else {
+        toast.error("Failed to delete transactions", {
+          description: result.error || "Please try again.",
+        })
+      }
     } catch (error) {
-      toast.error('Failed to delete transactions')
+      toast.error("Failed to delete transactions", {
+        description: "An unexpected error occurred.",
+      })
+    } finally {
+      setBulkDeleteLoading(false)
+      setBulkDeleteDialogOpen(false)
     }
   }
 
   const clearFilters = () => {
-    setSearchTerm('')
-    setCategoryFilter('all')
-    setTypeFilter('all')
-    setRecurringFilter('all')
+    setSearchTerm("")
+    setCategoryFilter("all")
+    setTypeFilter("all")
+    setRecurringFilter("all")
   }
+
+  const selectedTransactions = filteredAndSortedTransactions.filter((t) => selectedRows.has(t.id))
+  const selectedTotal = selectedTransactions.reduce(
+    (sum, t) => sum + (t.type === "INCOME" ? t.amount : -t.amount),
+    0,
+  )
 
   return (
     <TooltipProvider>
@@ -181,7 +252,7 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
                 className="pl-10 rounded-2xl border-chingu-peach-200 focus:border-chingu-peach-400 bg-white/80 backdrop-blur-sm"
               />
             </div>
-            
+
             <div className="flex gap-2">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-40 rounded-2xl border-chingu-peach-200 bg-white/80 backdrop-blur-sm">
@@ -189,7 +260,7 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
+                  {categories.map((category) => (
                     <SelectItem key={category} value={category} className="capitalize">
                       {category}
                     </SelectItem>
@@ -222,17 +293,17 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
           </div>
 
           <div className="flex gap-2">
-            {(searchTerm || categoryFilter !== 'all' || typeFilter !== 'all' || recurringFilter !== 'all') && (
+            {(searchTerm || categoryFilter !== "all" || typeFilter !== "all" || recurringFilter !== "all") && (
               <Button
                 variant="outline"
                 onClick={clearFilters}
                 className="rounded-2xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent"
               >
-                <Filter className="h-4 w-4 mr-2" />
+                <X className="h-4 w-4 mr-2" />
                 Clear Filters
               </Button>
             )}
-            
+
             <Button
               variant="outline"
               className="rounded-2xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent"
@@ -245,22 +316,40 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
 
         {/* Bulk Actions */}
         {selectedRows.size > 0 && (
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-chingu-peach-100 to-chingu-mint-100 rounded-2xl animate-fade-in">
-            <div className="flex items-center space-x-2">
-              <Badge className="bg-gradient-to-r from-chingu-peach-300 to-chingu-mint-300 text-white border-0">
-                {selectedRows.size} selected
-              </Badge>
-              <span className="text-sm text-gray-600">
-                {selectedRows.size} transaction{selectedRows.size > 1 ? 's' : ''} selected
-              </span>
+          <div className="flex items-center justify-between p-6 bg-gradient-to-r from-chingu-peach-100 to-chingu-mint-100 rounded-3xl animate-fade-in border border-chingu-peach-200">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Badge className="bg-gradient-to-r from-chingu-peach-300 to-chingu-mint-300 text-white border-0 text-sm px-3 py-1">
+                  {selectedRows.size} selected
+                </Badge>
+                <span className="text-sm text-gray-700 font-medium">
+                  {selectedRows.size} transaction{selectedRows.size > 1 ? "s" : ""} selected
+                </span>
+              </div>
+              <div className="text-sm text-gray-600">
+                Total impact:{" "}
+                <span className={`font-bold ${selectedTotal >= 0 ? "text-emerald-600" : "text-pink-600"}`}>
+                  {selectedTotal >= 0 ? "+" : ""}
+                  {formatCurrency(selectedTotal)}
+                </span>
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleBulkDelete}
-                disabled={deleteTransactionLoading}
-                className="rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => setSelectedRows(new Set())}
+                className="rounded-xl border-gray-300 hover:bg-gray-50 bg-transparent"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear Selection
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDeleteClick}
+                disabled={bulkDeleteLoading}
+                className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 bg-transparent"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Selected
@@ -270,72 +359,115 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
         )}
 
         {/* Results Summary */}
-        <div className="flex items-center justify-between text-sm text-gray-600">
+        <div className="flex items-center justify-between text-sm text-gray-600 px-2">
           <span>
-            Showing {filteredAndSortedTransactions.length} of {transactions.length} transactions
+            Showing {paginatedTransactions.length} of {transactions.length} transactions
           </span>
           {filteredAndSortedTransactions.length > 0 && (
             <span>
-              Total: {formatCurrency(
-                filteredAndSortedTransactions.reduce((sum, t) => 
-                  sum + (t.type === 'INCOME' ? t.amount : -t.amount), 0
-                )
-              )}
+              Total:{" "}
+              <span
+                className={`font-semibold ${
+                  filteredAndSortedTransactions.reduce(
+                    (sum, t) => sum + (t.type === "INCOME" ? t.amount : -t.amount),
+                    0,
+                  ) >= 0
+                    ? "text-emerald-600"
+                    : "text-pink-600"
+                }`}
+              >
+                {formatCurrency(
+                  filteredAndSortedTransactions.reduce(
+                    (sum, t) => sum + (t.type === "INCOME" ? t.amount : -t.amount),
+                    0,
+                  ),
+                )}
+              </span>
             </span>
           )}
         </div>
 
         {/* Table */}
-        <div className="rounded-2xl border border-chingu-peach-200 overflow-hidden bg-white/50 backdrop-blur-sm">
+        <div className="rounded-3xl border border-chingu-peach-200 overflow-hidden bg-white/50 backdrop-blur-sm shadow-xl">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gradient-to-r from-chingu-peach-50 to-chingu-mint-50 hover:bg-gradient-to-r hover:from-chingu-peach-100 hover:to-chingu-mint-100">
-                <TableHead className="w-[50px]">
+              <TableRow className="bg-gradient-to-r from-chingu-peach-50 to-chingu-mint-50 hover:bg-gradient-to-r hover:from-chingu-peach-100 hover:to-chingu-mint-100 border-b border-chingu-peach-200">
+                <TableHead className="w-[50px] pl-6">
                   <Checkbox
-                    checked={filteredAndSortedTransactions.length > 0 && selectedRows.size === filteredAndSortedTransactions.length}
+                    checked={
+                      filteredAndSortedTransactions.length > 0 &&
+                      selectedRows.size === filteredAndSortedTransactions.length
+                    }
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all rows"
+                    className="rounded-lg"
                   />
                 </TableHead>
-                <TableHead className="cursor-pointer font-semibold" onClick={() => handleSort('date')}>
+                <TableHead className="cursor-pointer font-semibold text-gray-700" onClick={() => handleSort("date")}>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Date
-                    {sortConfig?.key === 'date' && <ArrowUpDown className="h-4 w-4" />}
+                    {sortConfig?.key === "date" && <ArrowUpDown className="h-4 w-4" />}
                   </div>
                 </TableHead>
-                <TableHead className="cursor-pointer font-semibold" onClick={() => handleSort('description')}>
+                <TableHead
+                  className="cursor-pointer font-semibold text-gray-700"
+                  onClick={() => handleSort("description")}
+                >
                   <div className="flex items-center gap-2">
                     Description
-                    {sortConfig?.key === 'description' && <ArrowUpDown className="h-4 w-4" />}
+                    {sortConfig?.key === "description" && <ArrowUpDown className="h-4 w-4" />}
                   </div>
                 </TableHead>
-                <TableHead className="cursor-pointer font-semibold" onClick={() => handleSort('category')}>
+                <TableHead
+                  className="cursor-pointer font-semibold text-gray-700"
+                  onClick={() => handleSort("category")}
+                >
                   <div className="flex items-center gap-2">
                     Category
-                    {sortConfig?.key === 'category' && <ArrowUpDown className="h-4 w-4" />}
+                    {sortConfig?.key === "category" && <ArrowUpDown className="h-4 w-4" />}
                   </div>
                 </TableHead>
-                <TableHead className="cursor-pointer text-right font-semibold" onClick={() => handleSort('amount')}>
+                <TableHead
+                  className="cursor-pointer text-right font-semibold text-gray-700"
+                  onClick={() => handleSort("amount")}
+                >
                   <div className="flex items-center justify-end gap-2">
                     <DollarSign className="h-4 w-4" />
                     Amount
-                    {sortConfig?.key === 'amount' && <ArrowUpDown className="h-4 w-4" />}
+                    {sortConfig?.key === "amount" && <ArrowUpDown className="h-4 w-4" />}
                   </div>
                 </TableHead>
-                <TableHead className="text-center font-semibold">Type</TableHead>
-                <TableHead className="text-right font-semibold">Actions</TableHead>
+                <TableHead className="text-center font-semibold text-gray-700">Type</TableHead>
+                <TableHead className="text-right font-semibold text-gray-700 pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAndSortedTransactions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-32 text-center">
-                    <div className="flex flex-col items-center space-y-2">
-                      <Search className="h-8 w-8 text-gray-400" />
-                      <p className="text-gray-500">No transactions found</p>
-                      {(searchTerm || categoryFilter !== 'all' || typeFilter !== 'all' || recurringFilter !== 'all') && (
-                        <Button variant="outline" onClick={clearFilters} size="sm" className="rounded-xl">
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-chingu-peach-200 to-chingu-mint-200 rounded-3xl flex items-center justify-center">
+                        <Search className="h-8 w-8 text-gray-500" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-lg font-semibold text-gray-600">No transactions found</p>
+                        <p className="text-sm text-gray-500">
+                          {searchTerm || categoryFilter !== "all" || typeFilter !== "all" || recurringFilter !== "all"
+                            ? "Try adjusting your filters to see more results"
+                            : "Start by adding your first transaction"}
+                        </p>
+                      </div>
+                      {(searchTerm ||
+                        categoryFilter !== "all" ||
+                        typeFilter !== "all" ||
+                        recurringFilter !== "all") && (
+                        <Button
+                          variant="outline"
+                          onClick={clearFilters}
+                          size="sm"
+                          className="rounded-xl bg-transparent border-chingu-peach-200 hover:bg-chingu-peach-50"
+                        >
                           Clear filters
                         </Button>
                       )}
@@ -343,49 +475,55 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAndSortedTransactions.map((transaction, index) => (
+                paginatedTransactions.map((transaction, index) => (
                   <TableRow
                     key={transaction.id}
-                    data-state={selectedRows.has(transaction.id) && 'selected'}
-                    className="hover:bg-gradient-to-r hover:from-chingu-peach-50 hover:to-chingu-mint-50 transition-all duration-200"
+                    data-state={selectedRows.has(transaction.id) && "selected"}
+                    className="hover:bg-gradient-to-r hover:from-chingu-peach-50 hover:to-chingu-mint-50 transition-all duration-200 border-b border-chingu-peach-100 group"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <TableCell>
+                    <TableCell className="pl-6">
                       <Checkbox
                         checked={selectedRows.has(transaction.id)}
                         onCheckedChange={(checked) => handleSelectRow(transaction.id, !!checked)}
                         aria-label={`Select row for ${transaction.description}`}
+                        className="rounded-lg"
                       />
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {format(new Date(transaction.date), 'MMM dd, yyyy')}
+                    <TableCell className="font-medium text-gray-700">
+                      {format(new Date(transaction.date), "MMM dd, yyyy")}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                            transaction.type === 'INCOME'
-                              ? 'bg-gradient-to-br from-chingu-mint-300 to-emerald-300'
-                              : 'bg-gradient-to-br from-chingu-peach-300 to-pink-300'
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm ${
+                            transaction.type === "INCOME"
+                              ? "bg-gradient-to-br from-chingu-mint-300 to-emerald-300"
+                              : "bg-gradient-to-br from-chingu-peach-300 to-pink-300"
                           }`}
                         >
-                          {transaction.type === 'INCOME' ? (
-                            <ArrowUpRight className="h-4 w-4 text-white" />
+                          {transaction.type === "INCOME" ? (
+                            <ArrowUpRight className="h-5 w-5 text-white" />
                           ) : (
-                            <ArrowDownLeft className="h-4 w-4 text-white" />
+                            <ArrowDownLeft className="h-5 w-5 text-white" />
                           )}
                         </div>
-                        <span className="font-medium">{transaction.description}</span>
+                        <div>
+                          <span className="font-semibold text-gray-800">{transaction.description}</span>
+                          {transaction.account && (
+                            <p className="text-xs text-gray-500 mt-1">{transaction.account.name}</p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className="capitalize rounded-full border-2"
+                        className="capitalize rounded-full border-2 font-medium"
                         style={{
-                          borderColor: categoryColors[transaction.category] || '#6b7280',
-                          color: categoryColors[transaction.category] || '#6b7280',
-                          backgroundColor: `${categoryColors[transaction.category] || '#6b7280'}10`,
+                          borderColor: categoryColors[transaction.category] || "#6b7280",
+                          color: categoryColors[transaction.category] || "#6b7280",
+                          backgroundColor: `${categoryColors[transaction.category] || "#6b7280"}15`,
                         }}
                       >
                         {transaction.category}
@@ -394,10 +532,10 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
                     <TableCell className="text-right">
                       <span
                         className={`font-bold text-lg ${
-                          transaction.type === 'INCOME' ? 'text-emerald-600' : 'text-pink-600'
+                          transaction.type === "INCOME" ? "text-emerald-600" : "text-pink-600"
                         }`}
                       >
-                        {transaction.type === 'INCOME' ? '+' : '-'}
+                        {transaction.type === "INCOME" ? "+" : "-"}
                         {formatCurrency(transaction.amount)}
                       </span>
                     </TableCell>
@@ -407,57 +545,60 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
                           <TooltipTrigger asChild>
                             <Badge
                               variant="secondary"
-                              className="cursor-help bg-gradient-to-r from-chingu-lavender-200 to-chingu-sky-200 text-gray-700 border-0 rounded-full"
+                              className="cursor-help bg-gradient-to-r from-chingu-lavender-200 to-chingu-sky-200 text-gray-700 border-0 rounded-full font-medium"
                             >
                               <Clock className="mr-1 h-3 w-3" />
                               {RECURRING_INTERVALS[transaction.recurringInterval]}
                             </Badge>
                           </TooltipTrigger>
-                          <TooltipContent className="rounded-xl">
+                          <TooltipContent className="rounded-xl bg-white border border-chingu-peach-200 shadow-lg">
                             <div className="space-y-1">
                               {transaction.lastProcessed && (
-                                <p className="text-xs">
-                                  Last: {format(new Date(transaction.lastProcessed), 'PPp')}
-                                </p>
+                                <p className="text-xs">Last: {format(new Date(transaction.lastProcessed), "PPp")}</p>
                               )}
                               {transaction.nextRecurringDate && (
                                 <p className="text-xs">
-                                  Next: {format(new Date(transaction.nextRecurringDate), 'PPp')}
+                                  Next: {format(new Date(transaction.nextRecurringDate), "PPp")}
                                 </p>
                               )}
                             </div>
                           </TooltipContent>
                         </Tooltip>
                       ) : (
-                        <Badge variant="outline" className="rounded-full">
+                        <Badge variant="outline" className="rounded-full font-medium">
                           One-Time
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right pr-6">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="rounded-xl">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            disabled={deleteLoading === transaction.id}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuContent align="end" className="rounded-xl border-chingu-peach-200 shadow-lg">
+                          <DropdownMenuLabel className="text-gray-700">Actions</DropdownMenuLabel>
                           <DropdownMenuItem
-                            className="cursor-pointer rounded-lg"
+                            className="cursor-pointer rounded-lg focus:bg-chingu-peach-50"
                             onClick={() => router.push(`/transaction/create?edit=true&id=${transaction.id}`)}
                           >
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit
+                            Edit Transaction
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                          <DropdownMenuSeparator className="bg-chingu-peach-200" />
                           <DropdownMenuItem
-                            className="text-red-600 cursor-pointer rounded-lg focus:text-red-600"
-                            disabled={deleteTransactionLoading}
-                            onClick={() => handleDelete(transaction.id)}
+                            className="text-red-600 cursor-pointer rounded-lg focus:text-red-600 focus:bg-red-50"
+                            disabled={deleteLoading === transaction.id}
+                            onClick={() => handleDeleteClick(transaction.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            {deleteLoading === transaction.id ? "Deleting..." : "Delete Transaction"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -468,6 +609,129 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination Controls */}
+<div className="flex items-center justify-between pt-4 px-2">
+  <div className="flex items-center gap-2 text-sm text-gray-600">
+    <span>Rows per page:</span>
+    <Select
+      value={String(itemsPerPage)}
+      onValueChange={(value) => setItemsPerPage(Number(value))}
+    >
+      <SelectTrigger className="w-20 rounded-xl border-chingu-peach-200 bg-white/80 backdrop-blur-sm h-9">
+        <SelectValue placeholder={itemsPerPage} />
+      </SelectTrigger>
+      <SelectContent className="rounded-xl">
+        {[12, 25, 50, 100].map((size) => (
+          <SelectItem key={size} value={String(size)}>
+            {size}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+
+  <div className="flex items-center gap-4">
+    <span className="text-sm text-gray-600 font-medium">
+      Page {totalPages > 0 ? currentPage + 1 : 0} of {totalPages}
+    </span>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setCurrentPage(currentPage - 1)}
+        disabled={currentPage === 0}
+        className="rounded-xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent"
+      >
+        Previous
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setCurrentPage(currentPage + 1)}
+        disabled={currentPage >= totalPages - 1}
+        className="rounded-xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent"
+      >
+        Next
+      </Button>
+    </div>
+  </div>
+</div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="rounded-3xl border-chingu-peach-200">
+            <AlertDialogHeader>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-400 rounded-2xl flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <AlertDialogTitle className="text-xl font-bold text-gray-800">Delete Transaction</AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-600">
+                    Are you sure you want to delete this transaction? This action cannot be undone and will update your
+                    account balance.
+                  </AlertDialogDescription>
+                </div>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-3">
+              <AlertDialogCancel className="rounded-2xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={!!deleteLoading}
+                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-2xl"
+              >
+                {deleteLoading ? "Deleting..." : "Delete Transaction"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+          <AlertDialogContent className="rounded-3xl border-chingu-peach-200">
+            <AlertDialogHeader>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-400 rounded-2xl flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <AlertDialogTitle className="text-xl font-bold text-gray-800">
+                    Delete {selectedRows.size} Transactions
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-600">
+                    Are you sure you want to delete {selectedRows.size} selected transactions? This action cannot be
+                    undone and will update your account balances accordingly.
+                  </AlertDialogDescription>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-chingu-peach-50 to-chingu-mint-50 rounded-2xl p-4 border border-chingu-peach-200">
+                <p className="text-sm text-gray-700 mb-2">
+                  <strong>Impact on your accounts:</strong>
+                </p>
+                <p className={`text-lg font-bold ${selectedTotal >= 0 ? "text-emerald-600" : "text-pink-600"}`}>
+                  {selectedTotal >= 0 ? "+" : ""}
+                  {formatCurrency(selectedTotal)}
+                </p>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-3">
+              <AlertDialogCancel className="rounded-2xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDeleteConfirm}
+                disabled={bulkDeleteLoading}
+                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-2xl"
+              >
+                {bulkDeleteLoading ? "Deleting..." : `Delete ${selectedRows.size} Transactions`}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   )
