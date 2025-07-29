@@ -6,7 +6,7 @@ const MainLayout = ({
   children: React.ReactNode;
 }>) => {
   return (
-    <div className='flex justify-center'>
+    <div className='min-h-screen mx-auto container'>
         {children}
     </div>
   )

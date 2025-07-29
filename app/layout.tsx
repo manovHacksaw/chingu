@@ -4,6 +4,7 @@ import "./globals.css";
 import Footer from "@/components/footer";
 import Header from "@/components/header";
 import {ClerkProvider} from "@clerk/nextjs"
+import { Toaster } from "sonner";
 
 const inter = Inter({subsets: ["latin"]})
 const poppins = Poppins({subsets: ["latin"], weight: ["500"]})
@@ -28,6 +29,7 @@ export default function RootLayout({
      <main className="min-h-screen">
        {children}
        </main>  
+       <Toaster/>
        <Footer/>
       </body>
     </html>
