@@ -102,7 +102,7 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
   const filteredAndSortedTransactions = useMemo(() => {
     const filtered = transactions.filter((transaction) => {
       const matchesSearch =
-        transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (transaction.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (transaction.account?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory = categoryFilter === "all" || transaction.category === categoryFilter
@@ -486,7 +486,7 @@ useEffect(() => {
                       <Checkbox
                         checked={selectedRows.has(transaction.id)}
                         onCheckedChange={(checked) => handleSelectRow(transaction.id, !!checked)}
-                        aria-label={`Select row for ${transaction.description}`}
+                        aria-label={`Select row for ${transaction.description || " "}`}
                         className="rounded-lg"
                       />
                     </TableCell>
@@ -509,7 +509,7 @@ useEffect(() => {
                           )}
                         </div>
                         <div>
-                          <span className="font-semibold text-gray-800">{transaction.description}</span>
+                          <span className="font-semibold text-gray-800"> {transaction.description ? transaction.description : <i> No Description</i>} </span>
                           {transaction.account && (
                             <p className="text-xs text-gray-500 mt-1">{transaction.account.name}</p>
                           )}

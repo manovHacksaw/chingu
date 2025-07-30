@@ -76,14 +76,13 @@ const Account = async ({ params }: { params: { id: string } }) => {
               </div>
             </div>
           </div>
-        <Link href="/transaction/create" passHref>
-  <Button asChild className="bg-gradient-to-r from-chingu-peach-400 to-chingu-mint-400 hover:from-chingu-peach-500 hover:to-chingu-mint-500 text-white rounded-2xl">
-    <a>
-      <Plus className="h-4 w-4 mr-2" />
-      Add Transaction
-    </a>
-  </Button>
-</Link>
+        <Button asChild className="bg-gradient-to-r from-chingu-peach-400 to-chingu-mint-400 hover:from-chingu-peach-500 hover:to-chingu-mint-500 text-white rounded-2xl">
+  <Link href="/transaction/create" className="flex items-center">
+    <Plus className="h-4 w-4 mr-2" />
+    Create Transaction
+  </Link>
+</Button>
+
         </div>
 
         {/* Account Overview Cards */}
