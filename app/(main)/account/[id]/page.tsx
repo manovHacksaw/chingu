@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Wallet, PiggyBank, CreditCard, TrendingUp, TrendingDown, Calendar, Plus } from 'lucide-react'
 import Link from 'next/link'
 import TransactionTable from './transaction-table'
+import AccountChart from './account-chart'
 // import AccountChart from './account-chart'
 
 const accountIcons = {
@@ -151,7 +152,7 @@ const Account = async ({ params }: { params: { id: string } }) => {
                 </div>
               }
             >
-              {/* <AccountChart transactions={transactions} /> */}
+              <AccountChart transactions={transactions} />
             </Suspense>
           </CardContent>
         </Card>
