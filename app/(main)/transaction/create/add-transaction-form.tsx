@@ -18,11 +18,13 @@ import { transactionSchema } from "@/lib/schema";
 import { useFetch } from "@/hooks/use-fetch";
 import { createTransaction } from "@/actions/transactions";
 import { CalendarIcon, DollarSign, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import ReceiptScanner from "./receipt-scanner";
 
 const AddTransactionForm = ({ accounts }) => {
   const router = useRouter();
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [scannedData, setScannedData] = useState(null);
 
   const {
     register,
@@ -63,6 +65,37 @@ const AddTransactionForm = ({ accounts }) => {
 
   const availableCategories = type === "INCOME" ? incomeCategories : expenseCategories;
 
+  // Function to handle scanned receipt data
+  const handleScannedData = (data) => {
+    if (data?.success && data?.data) {
+      const { amount, type, date, description, suggested_category } = data.data;
+      
+      // Set form values with scanned data
+      if (amount) setValue("amount", amount.toString());
+      if (type) setValue("type", type);
+      if (date) setValue("date", new Date(date));
+      if (description) setValue("description", description);
+      
+      // Map suggested category to available categories
+      if (suggested_category) {
+        // Try to find a matching category (case-insensitive)
+        const matchingCategory = availableCategories.find(
+          cat => cat.toLowerCase().includes(suggested_category.toLowerCase()) ||
+                 suggested_category.toLowerCase().includes(cat.toLowerCase())
+        );
+        
+        if (matchingCategory) {
+          setValue("category", matchingCategory);
+        } else if (suggested_category.toLowerCase().includes('food') || 
+                   suggested_category.toLowerCase().includes('restaurant')) {
+          setValue("category", "Food & Dining");
+        }
+      }
+      
+      setScannedData(data);
+    }
+  };
+
   // Clear messages after 5 seconds
   useEffect(() => {
     if (successMessage) {
@@ -102,6 +135,7 @@ const AddTransactionForm = ({ accounts }) => {
           isRecurring: false,
           recurringInterval: undefined,
         });
+        setScannedData(null);
         
         // Redirect to dashboard after a short delay
         setTimeout(() => {
@@ -120,6 +154,7 @@ const AddTransactionForm = ({ accounts }) => {
 
   return (
     <div className="space-y-6 max-w-md mx-auto py-6">
+   
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center mb-4">
@@ -130,6 +165,8 @@ const AddTransactionForm = ({ accounts }) => {
         <h2 className="text-2xl font-bold">Add Transaction</h2>
         <p className="text-muted-foreground">Record your income or expense</p>
       </div>
+
+      <ReceiptScanner onDataScanned={handleScannedData} />
 
       {/* Success Message */}
       {successMessage && (
@@ -146,6 +183,16 @@ const AddTransactionForm = ({ accounts }) => {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Scanned Data Confirmation */}
+      {scannedData && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <CheckCircle2 className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            Receipt scanned successfully! Form has been populated with extracted data.
+          </AlertDescription>
         </Alert>
       )}
 

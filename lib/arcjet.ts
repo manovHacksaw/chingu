@@ -6,9 +6,9 @@ export const aj = arcject({
     rules: [
         tokenBucket({
             mode: "LIVE",
-            refillRate: 3,
+            refillRate: 10,
             interval: 3600,
-            capacity: 3
+            capacity: 10
         })
     ]
 })

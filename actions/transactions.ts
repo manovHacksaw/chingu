@@ -7,6 +7,8 @@ import { Prisma } from "@prisma/client"; // Import Prisma for Decimal type
 import { transactionSchema } from "@/lib/schema";
 import { aj } from "@/lib/arcjet";
 import { request } from "@arcjet/next";
+import {GoogleGenerativeAI} from "@google/generative-ai"
+import { defaultCategories } from "@/data/categories";
 
 // --- SINGLE DELETE ---
 export async function deleteTransaction(transactionId: string) {
@@ -242,6 +244,86 @@ console.log("PASSED ARCJET")
     };
   }
 }
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+export async function scanReceipt(file) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+
+    const arrayBuffer = await file.arrayBuffer();
+    const base64String = Buffer.from(arrayBuffer).toString("base64");
+
+   const prompt = `
+You are a financial assistant AI analyzing a **receipt image**.
+
+Extract and return **only** the following fields in **valid JSON format**. Do not include any commentary, markdown, or formatting outside the JSON. The response must be a single JSON object.
+
+Required fields:
+- amount: (final total amount on the receipt as a number or decimal)
+-type: (either income or an expense)
+- date: (purchase date in ISO 8601 format, e.g., "2024-01-01T00:00:00.000Z")
+- description: (a brief summary of what was purchased, e.g., "Grocery items" or "Mobile accessories")
+- merchant: (store or seller name, if visible)
+- suggested_category: (one of: ${defaultCategories.map(category => category.name).join(", ")})
+
+If a field is not present or unclear, return an empty string or 0 (for amount). Do not invent values.
+
+Return only:
+{
+  "amount": 0,
+  "type": "" (INCOME | EXPENSE)
+  "date": "2024-01-01T00:00:00.000Z",
+  "description": "",
+  "merchant": "",
+  "category": ""
+}
+`;
+
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: file.type || "image/png",
+                data: base64String,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+
+    
+    const response = await result.response;
+    const text = response.text();
+
+    // Clean the response to ensure it's valid JSON
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error("Failed to find a valid JSON object in the AI response.");
+    }
+
+    const jsonString = text.substring(jsonStart, jsonEnd + 1);
+    
+    const parsedJson = JSON.parse(jsonString);
+    return { success: true, data: parsedJson };
+
+
+  } catch (error) {
+    console.error("Receipt scan failed:", error);
+    return "Sorry, we couldn't process the receipt.";
+  }
+}
+
+
 /**
  * Calculate the next recurring date from a given start date and interval
  * @param {Date | string} startDate - The base date to calculate from
