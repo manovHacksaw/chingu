@@ -7,12 +7,21 @@ import { TrendingUp, DollarSign, Target, CreditCard, User } from "lucide-react"
 import { CreateAccountDrawer } from "./create-account-drawer"
 import {UserAccounts} from "./user-accounts"
 import { getUserAccounts } from "@/actions/dashboard"
+import { getCurrentBudget } from "@/actions/budget"
+import BudgetProgress from "./budget-progress"
 
 // import { AccountsGrid } from "@/components/accounts-grid"
 // import { RecentTransactions } from "@/components/recent-transactions"
 
 const Dashboard = async() => {
    const accounts = await getUserAccounts();
+
+   const defaultAccount = accounts?.find((account)=>account.isDefault);
+
+   let budgetData = null;
+   if(defaultAccount){
+    budgetData = await getCurrentBudget(defaultAccount.id);
+   }
    
   
   return (
@@ -65,40 +74,7 @@ const Dashboard = async() => {
       </div>
 
       {/* Budget Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center">
-              <Target className="h-5 w-5 mr-2" />
-              Monthly Budget Progress
-            </span>
-            <span className="text-sm font-normal text-gray-600">$2,040 / $3,000</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Progress value={68} className="h-3" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Food & Dining</p>
-                <p className="font-semibold">$680 / $800</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Transportation</p>
-                <p className="font-semibold">$320 / $400</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Entertainment</p>
-                <p className="font-semibold">$180 / $300</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Shopping</p>
-                <p className="font-semibold">$860 / $1,500</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+     {defaultAccount && <BudgetProgress initialBudget = {budgetData?.budget} currentExpenses = {budgetData?.currentExpenses}/>}
 
       {/* Accounts Grid */}
       <div>
