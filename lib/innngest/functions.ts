@@ -5,17 +5,61 @@ import { inngest } from "./client";
 import DynamicEmail from "@/emails/template";
 
 /**
- * This scheduled function checks every 6 hours whether a user has spent
- * 80% or more of their monthly budget, and if so, logs a warning and updates
- * the `lastAlertSent` to avoid sending repeated alerts within the same month.
+ * A utility function to check if a date (last alert) is in a previous month.
+ * This prevents sending multiple budget alerts within the same calendar month.
+ */
+function isNewMonth(lastAlertSent: Date, currentDate: Date): boolean {
+  return (
+    lastAlertSent.getMonth() !== currentDate.getMonth() ||
+    lastAlertSent.getFullYear() !== currentDate.getFullYear()
+  );
+}
+
+/**
+ * A utility function to calculate the next date for a recurring event based on an interval.
+ */
+function getNextRecurringDate(from: Date, interval: string | null): Date | null {
+  if (!interval) return null;
+
+  const date = new Date(from);
+
+  switch (interval) {
+    case "DAILY":
+      date.setDate(date.getDate() + 1);
+      break;
+    case "WEEKLY":
+      date.setDate(date.getDate() + 7);
+      break;
+    case "MONTHLY":
+      date.setMonth(date.getMonth() + 1);
+      break;
+    case "YEARLY":
+      date.setFullYear(date.getFullYear() + 1);
+      break;
+    default:
+      return null;
+  }
+
+  return date;
+}
+
+
+/**
+ * =================================================================
+ * INNGEST FUNCTION 1: Check Budget Alert (Scheduled)
+ * =================================================================
+ * This scheduled function runs every 6 hours. It checks if a user has spent
+ * 80% or more of their monthly budget. If so, it sends an email alert and
+ * updates the `lastAlertSent` timestamp to avoid sending repeated alerts
+ * within the same month.
  */
 export const checkBudgetAlert = inngest.createFunction(
-  { name: "Check Budget Alert" },
+  { id: "check-budget-alert", name: "Check Budget Alert" },
   { cron: "0 */6 * * *" }, // Runs every 6 hours
   async ({ step }) => {
     
-    // Step 1: Fetch all budgets with their users and default accounts
-    const budgets = await step.run("fetch-budgets", async () => {
+    // Step 1: Fetch all budgets, including user and their default account details.
+    const budgets = await step.run("fetch-all-budgets", async () => {
       return await db.budget.findMany({
         include: {
           user: {
@@ -29,22 +73,22 @@ export const checkBudgetAlert = inngest.createFunction(
       });
     });
 
-    // Step 2: Loop through each budget to check expense usage
+    // Step 2: Loop through each budget to check its expense usage.
     for (const budget of budgets) {
       const defaultAccount = budget.user.accounts[0];
-      if (!defaultAccount) continue; // Skip if no default account exists
+      if (!defaultAccount) continue; // Skip if no default account is configured.
 
       const accountId = defaultAccount.id;
       const userId = budget.user.id;
 
-      // Step 3: Check spending for this account in the current month
-      await step.run(`check-budget-${budget.id}`, async () => {
+      // Step 3: Check spending for this account in the current calendar month.
+      await step.run(`check-spending-for-budget-${budget.id}`, async () => {
         const currentDate = new Date();
         const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        // Aggregate total expenses for the current month
-        const expenses = await db.transaction.aggregate({
+        // Aggregate total expenses within the date range for the user's default account.
+        const expenses = await db.$transaction.aggregate({
           where: {
             userId,
             type: "EXPENSE",
@@ -59,24 +103,26 @@ export const checkBudgetAlert = inngest.createFunction(
           }
         });
 
-        // Step 4: Calculate how much has been spent and what % of the budget is used
+        // Step 4: Calculate the percentage of the budget that has been used.
         const spent = Number(expenses._sum.amount) || 0;
         const limit = Number(budget.amount) || 0;
-        if (limit === 0) return; // Skip if budget is not set
+        if (limit === 0) return; // Skip if budget amount is zero.
 
         const percentUsed = (spent / limit) * 100;
 
-        // Step 5: If usage >= 80% AND no alert has been sent this month, alert user
+        // Step 5: Determine if an alert should be sent.
+        // An alert is sent if usage is >= 80% AND no alert has been sent in the current month.
         const shouldSendAlert =
           percentUsed >= 80 &&
           (!budget.lastAlertSent || isNewMonth(new Date(budget.lastAlertSent), currentDate));
 
         if (shouldSendAlert) {
-          // Log the alert (you can replace this with email/webhook later)
+          // Log the alert for monitoring purposes.
           console.log(
-            `⚠️ User ${userId} has used ${percentUsed.toFixed(1)}% of their monthly budget.`
+            `⚠️ Alert: User ${userId} has used ${percentUsed.toFixed(1)}% of their monthly budget.`
           );
 
+          // Send a dynamic email to the user.
           await sendEmail({
             to: budget.user.email,
             subject: `Budget Alert for ${defaultAccount.name}`,
@@ -84,12 +130,11 @@ export const checkBudgetAlert = inngest.createFunction(
                 userName: budget.user.name,
                 type: "budget-alert",
                 data: {percentUsed, limit, spent, accountName: defaultAccount.name}
-
             })
+          });
 
-          })
-
-          // Step 6: Update lastAlertSent in the DB to prevent duplicate alerts this month
+          // Step 6: Update the `lastAlertSent` timestamp in the database.
+          // This prevents sending another alert to the user until the next month.
           await db.budget.update({
             where: { id: budget.id },
             data: { lastAlertSent: new Date() }
@@ -100,13 +145,130 @@ export const checkBudgetAlert = inngest.createFunction(
   }
 );
 
+
 /**
- * Utility function to check if a date (last alert) is in a previous month.
- * Prevents multiple alerts within the same calendar month.
+ * =================================================================
+ * INNGEST FUNCTION 2: Trigger Recurring Transactions (Scheduled)
+ * =================================================================
+ * This scheduled function runs daily at midnight. It finds all "template"
+ * recurring transactions that are due to be created and creates a new,
+ * separate transaction with a 'PENDING' status for the user to approve.
  */
-function isNewMonth(lastAlertSent: Date, currentDate: Date): boolean {
-  return (
-    lastAlertSent.getMonth() !== currentDate.getMonth() ||
-    lastAlertSent.getFullYear() !== currentDate.getFullYear()
-  );
-}
+export const triggerRecurringTransactions = inngest.createFunction(
+  {
+    id: "trigger-recurring-transactions",
+    name: "Trigger Recurring Transactions",
+  },
+  { cron: "0 0 * * *" }, // Run every day at midnight
+  async ({ step }) => {
+    const today = new Date();
+
+    // Fetch all 'COMPLETED' transactions that are marked as recurring templates
+    // and are due to be processed today (or are overdue).
+    const recurringTxTemplates = await step.run("fetch-due-recurring-transactions", async () => {
+      return db.$transaction.findMany({
+        where: {
+          isRecurring: true,
+          status: "COMPLETED", // These are the original templates
+          OR: [
+            { nextRecurringDate: { lte: today } },
+            { nextRecurringDate: null }, // For templates that have never run
+          ]
+        }
+      });
+    });
+
+    // Create a new pending transaction for each due template.
+    for (const template of recurringTxTemplates) {
+      await step.run(`create-pending-transaction-for-${template.id}`, async () => {
+        
+        // Create a new transaction instance based on the template.
+        // It's set to 'PENDING' and linked back to the original template.
+        await db.$transaction.create({
+          data: {
+            type: template.type,
+            amount: template.amount,
+            description: template.description,
+            date: today,
+            category: template.category,
+            receiptUrl: template.receiptUrl,
+            userId: template.userId,
+            accountId: template.accountId,
+            status: "PENDING", // This new transaction requires user action
+            
+            // Link this new instance back to its template
+            isRecurring: false, // This instance itself does not generate others
+            recurringTemplateId: template.id, 
+          },
+        });
+
+        // We will update the template's nextRecurringDate only after this
+        // pending transaction is processed by the user, using the
+        // 'processRecurringTransactions' function below.
+      });
+    }
+  }
+);
+
+
+/**
+ * =================================================================
+ * INNGEST FUNCTION 3: Process Recurring Transaction (Event-Driven)
+ * =================================================================
+ * This function is triggered by an event, `transaction.recurring.process`,
+ * which should be sent when a user approves a pending recurring transaction.
+ * It marks the transaction as 'COMPLETED' and updates the original template
+ * with the next recurring date.
+ */
+export const processRecurringTransactions = inngest.createFunction(
+  {
+    id: "process-recurring-transaction",
+    name: "Process Recurring Transaction",
+    // Throttling prevents a user from overwhelming the system.
+    // Limits to 10 events per minute for any given user.
+    throttle: {
+      limit: 10,
+      period: "1m",
+      key: "event.data.userId"
+    },
+  },
+  { event: "transaction.recurring.process" },
+  async ({ event, step }) => {
+    // The event payload should contain the necessary IDs.
+    const { transactionId, recurringTemplateId, recurringInterval, userId } = event.data;
+
+    if (!transactionId || !recurringTemplateId || !recurringInterval) {
+        console.error("Invalid event payload. Missing required IDs.", event.data);
+        return;
+    }
+
+    // Step 1: Finalize the pending transaction by marking it as 'COMPLETED'.
+    await step.run(`complete-transaction-${transactionId}`, async () => {
+      return db.$transaction.update({
+        where: { id: transactionId },
+        data: { 
+            status: "COMPLETED",
+            date: new Date(), // Set the completion date to now
+        },
+      });
+    });
+
+    // Step 2: Calculate the next due date for the original template.
+    const nextDate = getNextRecurringDate(new Date(), recurringInterval);
+
+    // Step 3: Update the original template with the new `nextRecurringDate`.
+    // This ensures it will be picked up again by the `triggerRecurringTransactions` function
+    // in the next cycle.
+    await step.run(`update-template-${recurringTemplateId}`, async () => {
+      return db.$transaction.update({
+        where: { id: recurringTemplateId },
+        data: {
+          lastProcessed: new Date(),
+          nextRecurringDate: nextDate,
+        },
+      });
+    });
+
+    console.log(`Successfully processed recurring transaction ${transactionId} for user ${userId}.`);
+  }
+);

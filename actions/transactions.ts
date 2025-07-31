@@ -9,6 +9,7 @@ import { aj } from "@/lib/arcjet";
 import { request } from "@arcjet/next";
 import {GoogleGenerativeAI} from "@google/generative-ai"
 import { defaultCategories } from "@/data/categories";
+import { includes } from "zod";
 
 // --- SINGLE DELETE ---
 export async function deleteTransaction(transactionId: string) {
@@ -324,6 +325,112 @@ Return only:
 }
 
 
+export async function getTransaction(id){
+   const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) throw new Error("Unauthorized");
+
+    const user = await db.user.findUnique({ where: { clerkUserId } });
+    if (!user) throw new Error("User Not Found");
+
+    const transaction = await db.transaction.findUnique({
+      where: {
+        id, userId: user.id
+      }
+    })
+
+    if(!transaction) throw new Error("Transaction Not Found");
+
+    return JSON.parse(JSON.stringify(transaction));
+
+}
+
+/**
+ * Updates a user's transaction and adjusts the associated account balance accordingly.
+ * @param id - ID of the transaction to update
+ * @param data - New transaction data
+ */
+export async function updateTransaction(id: string, data: any) {
+  try {
+    // Step 1: Authenticate the user
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) throw new Error("Unauthorized");
+
+    // Step 2: Find the internal user record linked to Clerk
+    const user = await db.user.findUnique({
+      where: { clerkUserId }
+    });
+    if (!user) throw new Error("User Not Found");
+
+    // Step 3: Fetch the existing transaction and associated account
+    const transaction = await db.transaction.findUnique({
+      where: {
+        id,
+        userId: user.id
+      },
+      include: {
+        account: true
+      }
+    });
+    if (!transaction) throw new Error("No Transaction Found");
+
+    // Step 4: Calculate balance change
+    // Old balance change based on existing transaction
+    const oldBalanceChange =
+      transaction.type === "EXPENSE"
+        ? -Number(transaction.amount)
+        : Number(transaction.amount);
+
+    // New balance change based on incoming update
+    const newBalanceChange =
+      data.type === "EXPENSE"
+        ? -Number(data.amount)
+        : Number(data.amount);
+
+    // Net change = new - old
+    const netBalanceChange = newBalanceChange - oldBalanceChange;
+
+    // Step 5: Execute transaction update and account balance adjustment atomically
+    const updatedTransaction = await db.$transaction(async (tx) => {
+      // Update transaction record
+      const updatedTx = await tx.transaction.update({
+        where: {
+          id,
+          userId: user.id
+        },
+        data: {
+          ...data,
+          // Set next recurring date if applicable
+          nextRecurringDate:
+            data.isRecurring && data.recurringInterval
+              ? calculateNextRecurringDate(data.date, data.recurringInterval)
+              : null
+        }
+      });
+
+      // Update account balance with the net change
+      await tx.account.update({
+        where: { id: data.accountId },
+        data: {
+          balance: {
+            increment: netBalanceChange
+          }
+        }
+      });
+
+      // Return the updated transaction
+      return updatedTx;
+    });
+
+    // Step 6: Return the updated transaction data
+    return {success: true, updatedData: JSON.parse(JSON.stringify(updatedTransaction))};
+
+  } catch (error) {
+    // Step 7: Handle and rethrow any errors
+    
+    console.error("Update Transaction Error:", error);
+    return {sucess: false, error: error.message}
+  }
+}
 /**
  * Calculate the next recurring date from a given start date and interval
  * @param {Date | string} startDate - The base date to calculate from
