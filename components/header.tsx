@@ -30,7 +30,7 @@ const Header = async() => {
             <span> Dashboard</span> 
             </Button>
             </Link>
-            <Link href={"/"}>
+            <Link href={"/transaction/create"}>
             <Button ><Pen/> <span> Add Transaction</span> </Button>
             
             </Link>
