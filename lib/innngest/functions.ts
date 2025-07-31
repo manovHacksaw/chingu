@@ -1,13 +1,24 @@
 import { sendEmail } from "@/actions/send-email";
 import { db } from "../prisma";
 import { inngest } from "./client";
-
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import DynamicEmail from "@/emails/template";
+import { includes } from "zod";
 
 /**
  * A utility function to check if a date (last alert) is in a previous month.
  * This prevents sending multiple budget alerts within the same calendar month.
+ * 
+ * 
  */
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-pro", // A fast and capable model
+  generationConfig: {
+    responseMimeType: "application/json", // Enable JSON Mode
+  },
+});
 function isNewMonth(lastAlertSent: Date, currentDate: Date): boolean {
   return (
     lastAlertSent.getMonth() !== currentDate.getMonth() ||
@@ -272,3 +283,149 @@ export const processRecurringTransactions = inngest.createFunction(
     console.log(`Successfully processed recurring transaction ${transactionId} for user ${userId}.`);
   }
 );
+
+
+
+export const generateMonthltReports = inngest.createFunction(
+  {
+    id: "generate-monthly-reports",
+    name: "Genrate Montly Reports",
+  },
+  {cron: "0 0 1 *  *"},
+  async({step})=>{
+    const users = await step.run("fetch-users", async() =>{
+      return await db.user.findMany({
+        include: {accounts: true},
+      })
+    })
+    
+  
+    for (const user of users){
+      await step.run(`generate-report-${user.id}`, async()=>{
+        const lastMonth = new Date();
+  lastMonth.setMonth(lastMonth.getMonth() - 1); 
+
+        const stats = await getMonthlyStats(user.id, lastMonth) ;
+
+        const monthName = lastMonth.toLocaleString("default", {
+          month: "long"
+        })
+
+        const insights = await generateFinancialInsights(stats, monthName);
+
+        await sendEmail({
+          to: user.email,
+          subject: `Your Monthly Financial Report - ${monthName}`,
+          react: DynamicEmail({
+            userName: user.name,
+            type: "monthly-report",
+            data:{
+                stats,
+                month: monthName,
+                insights
+            }
+          })
+        })
+      })
+    }
+  }
+)
+
+
+
+export async function getMonthlyStats(userId: string, month: Date) {
+  const startDate = new Date(month.getFullYear(), month.getMonth(), 1);
+  const endDate = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+
+  const transactions = await db.transaction.findMany({
+    where: {
+      userId,
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+  });
+
+  // FIX: Corrected typos from `totalExpense` and `byCatgeory`
+  return transactions.reduce(
+    (stats, t) => {
+      const amount = Number(t.amount);
+      if (t.type === "EXPENSE") {
+        stats.totalExpenses += amount;
+        stats.byCategory[t.category] = (stats.byCategory[t.category] || 0) + amount;
+      } else {
+        stats.totalIncome += amount;
+      }
+      return stats;
+    },
+    {
+      totalExpenses: 0,
+      totalIncome: 0,
+      byCategory: {} as Record<string, number>,
+      transactionCount: transactions.length,
+    }
+  );
+}
+
+export function getRuleBasedFinancialInsights(stats: Awaited<ReturnType<typeof getMonthlyStats>>, monthName: string) {
+  // ... (the original logic from your `generateFinancialInsights` function)
+  const { totalIncome, totalExpenses, byCategory } = stats;
+  const netSavings = totalIncome - totalExpenses;
+  const topCategory = Object.entries(byCategory).sort(([, a], [, b]) => b - a)[0];
+
+  let summary = `In ${monthName}, your financial activity included a total income of ₹${totalIncome.toFixed(2)} and total expenses of ₹${totalExpenses.toFixed(2)}.`;
+  let topCategoryInsight = "No expenses were recorded this month.";
+  if (topCategory) {
+    topCategoryInsight = `Your highest spending was in the '${topCategory[0]}' category, amounting to ₹${topCategory[1].toFixed(2)}.`;
+  }
+  let savingsInsight = `This resulted in a net saving of ₹${netSavings.toFixed(2)}. Keep up the great work! 👍`;
+  if (netSavings < 0) {
+    savingsInsight = `Your expenses exceeded your income by ₹${Math.abs(netSavings).toFixed(2)}. It might be a good time to review your spending habits.`;
+  }
+  return { summary, topCategoryInsight, savingsInsight };
+}
+
+// The new AI-powered function
+export async function generateFinancialInsights(
+  stats: Awaited<ReturnType<typeof getMonthlyStats>>,
+  monthName: string
+) {
+  const { totalIncome, totalExpenses, byCategory, transactionCount } = stats;
+
+  const prompt = `
+    You are a friendly and encouraging financial assistant. Analyze the following monthly financial data for a user in India (currency is Rupees ₹) and provide a short, insightful summary. The tone should be helpful, positive, and not judgmental.
+
+    The user's data for ${monthName} is:
+    - Total Income: ${totalIncome.toFixed(2)}
+    - Total Expenses: ${totalExpenses.toFixed(2)}
+    - Total Transactions: ${transactionCount}
+    - Expenses by Category: ${JSON.stringify(byCategory)}
+
+    Please provide your insights as a JSON object with three keys: "summary", "topCategoryInsight", and "savingsInsight".
+    - "summary": A brief, one-sentence overview of the month's activity.
+    - "topCategoryInsight": A one-sentence comment on the category with the highest spending.
+    - "savingsInsight": A one-sentence comment on the net savings or deficit, offering encouragement or gentle advice.
+  `;
+
+  try {
+    console.log("Generating financial insights with Gemini AI...");
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    const insights = JSON.parse(responseText);
+
+    // Validate the AI response has the expected structure
+    if (insights.summary && insights.topCategoryInsight && insights.savingsInsight) {
+      console.log("Successfully generated AI insights.");
+      return insights;
+    }
+    // If validation fails, throw an error to trigger the fallback
+    throw new Error("AI response did not match the required format.");
+
+  } catch (error) {
+    console.error("Gemini AI insight generation failed:", error);
+    console.log("Falling back to rule-based insights.");
+    // Fallback to the original function if the AI call fails for any reason
+    return getRuleBasedFinancialInsights(stats, monthName);
+  }
+}

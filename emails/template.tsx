@@ -8,17 +8,20 @@ import {
   Button,
   Section,
   Container,
+  Row,
+  Column,
+  Hr,
 } from "@react-email/components";
 import * as React from "react";
 
 type EmailProps = {
   userName?: string;
-  type: "budget-alert" | "other-alert";
+  type: "budget-alert" | "other-alert" | "monthly-report";
   data?: Record<string, any>;
 };
 
 export default function DynamicEmail({
-  userName = "Manov",
+  userName = "",
   type,
   data = {},
 }: EmailProps) {
@@ -72,6 +75,87 @@ export default function DynamicEmail({
     );
   }
 
+  if (type === "monthly-report") {
+    const { stats, month, insights } = data;
+    const { totalIncome, totalExpenses, byCategory, transactionCount } = stats;
+    const netSavings = totalIncome - totalExpenses;
+
+    // Get top 5 spending categories
+    const topCategories = Object.entries(byCategory)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 5);
+
+    return (
+      <Html>
+        <Head />
+        <Preview>Your {month} Financial Summary is Here!</Preview>
+        <Section style={main}>
+          <Container style={container}>
+            <Text style={heading}>Your {month} Financial Summary 📊</Text>
+            <Text style={paragraph}>Hi {userName},</Text>
+            <Text style={paragraph}>
+              Here’s a look at your financial activity for {month}. You had a total of <strong>{transactionCount}</strong> transactions.
+            </Text>
+
+            <Section style={summarySection}>
+              <Row>
+                <Column style={summaryBox}>
+                  <Text style={summaryLabel}>Total Income</Text>
+                  <Text style={{ ...summaryValue, color: "#2e7d32" }}>
+                    ₹{totalIncome.toFixed(2)}
+                  </Text>
+                </Column>
+                <Column style={summaryBox}>
+                  <Text style={summaryLabel}>Total Expenses</Text>
+                  <Text style={{ ...summaryValue, color: "#d32f2f" }}>
+                    ₹{totalExpenses.toFixed(2)}
+                  </Text>
+                </Column>
+                <Column style={summaryBox}>
+                  <Text style={summaryLabel}>Net Savings</Text>
+                  <Text style={summaryValue}>
+                    ₹{netSavings.toFixed(2)}
+                  </Text>
+                </Column>
+              </Row>
+            </Section>
+
+            <Hr style={hr} />
+
+            <Text style={subheading}>Key Insights for {month}</Text>
+            <Text style={insightText}>💡 {insights.summary}</Text>
+            <Text style={insightText}>🎯 {insights.topCategoryInsight}</Text>
+            <Text style={insightText}>💰 {insights.savingsInsight}</Text>
+            
+            <Hr style={hr} />
+
+            <Text style={subheading}>Top Spending Categories</Text>
+            {topCategories.length > 0 ? (
+              topCategories.map(([category, amount]) => (
+                <Row key={category}>
+                  <Column>
+                    <Text style={categoryText}>{category}</Text>
+                  </Column>
+                  <Column align="right">
+                    <Text style={categoryAmount}>₹{(amount as number).toFixed(2)}</Text>
+                  </Column>
+                </Row>
+              ))
+            ) : (
+              <Text style={paragraph}>No expenses recorded this month.</Text>
+            )}
+            
+            <Section style={{ textAlign: "center", marginTop: "32px" }}>
+              <Button href="http://localhost:3000/dashboard" style={button}>
+                View Full Dashboard
+              </Button>
+            </Section>
+          </Container>
+        </Section>
+      </Html>
+    );
+  }
+
   // Fallback/default rendering for other types
   return (
     <Html>
@@ -87,3 +171,19 @@ export default function DynamicEmail({
     </Html>
   );
 }
+
+
+const main = { backgroundColor: "#f6f9fc", fontFamily: "Arial, sans-serif" };
+const container = { backgroundColor: "#ffffff", margin: "0 auto", padding: "20px 0 48px", width: "580px" };
+const heading = { fontSize: "24px", fontWeight: "bold", color: "#333", textAlign: "center" as const };
+const subheading = { fontSize: "18px", fontWeight: "bold", color: "#444", marginTop: "24px" };
+const paragraph = { fontSize: "16px", lineHeight: "24px", color: "#555" };
+const hr = { borderColor: "#e6ebf1", margin: "20px 0" };
+const button = { backgroundColor: "#5e6ad2", color: "#fff", padding: "12px 24px", borderRadius: "6px", textDecoration: "none" };
+const summarySection = { marginTop: "20px" };
+const summaryBox = { width: "33%", textAlign: "center" as const, padding: "10px" };
+const summaryLabel = { fontSize: "14px", color: "#888" };
+const summaryValue = { fontSize: "20px", fontWeight: "bold", color: "#333" };
+const insightText = { ...paragraph, margin: "8px 0", backgroundColor: "#f6f9fc", padding: "10px", borderRadius: "4px" };
+const categoryText = { ...paragraph, margin: "4px 0" };
+const categoryAmount = { ...categoryText, fontWeight: "bold" };
