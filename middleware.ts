@@ -5,6 +5,7 @@ import arcjet, { detectBot, shield , createMiddleware} from '@arcjet/next';
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
+  "/transaction(.*)"
 ]);
 
 const myClerkMiddleware = clerkMiddleware(async (auth, req) => {

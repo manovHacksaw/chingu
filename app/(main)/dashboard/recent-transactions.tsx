@@ -76,9 +76,9 @@ export function RecentTransactions({ transactions = [], accounts = [] }: Transac
                     }`}
                   >
                     {transaction.type === "INCOME" ? (
-                      <ArrowUpRight className="h-6 w-6 text-white" />
-                    ) : (
                       <ArrowDownLeft className="h-6 w-6 text-white" />
+                    ) : (
+                      <ArrowUpRight className="h-6 w-6 text-white" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
