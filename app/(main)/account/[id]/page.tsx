@@ -1,6 +1,6 @@
 import { getAccountWithTransactions } from "@/actions/accounts";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { FC, Suspense } from "react";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,8 +54,14 @@ const accountBgColors = {
   OTHER: "from-purple-50 to-violet-50",
 };
 
+interface PageProps{
+params: {
+    id: string;
+  };
+}
+
 // Main Page Component
-const AccountPage = async ({ params }: { params: { id: string } }) => {
+const AccountPage: FC<PageProps> = async ({ params }) => {
   const { id } = params;
   
   // Fetch data and handle the response object from the server action
