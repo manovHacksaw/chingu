@@ -195,7 +195,7 @@ const DashboardOverview = ({ accounts, transactions }: DashboardOverviewProps) =
               {transactionsByCategory.slice(0, 6).map((category, index) => (
                 <div key={category.name} className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                  <span className="text-xs text-gray-600 truncate">{category.name}</span>
+                  <span className="text-xs text-gray-600 truncate capitalize">{category.name}</span>
                 </div>
               ))}
             </div>

@@ -10,6 +10,8 @@ import { Target, TrendingUp, TrendingDown, DollarSign, Edit3, Save, X } from "lu
 import { useFetch } from "@/hooks/use-fetch"
 import { updateBudget } from "@/actions/budget"
 import { toast } from "sonner"
+import { Tooltip, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { TooltipTrigger } from "@radix-ui/react-tooltip"
 
 interface BudgetProgressProps {
   initialBudget: { amount: number } | null
@@ -87,22 +89,37 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-chingu-lavender-400 to-chingu-sky-400 rounded-2xl flex items-center justify-center">
-              <Target className="h-5 w-5 text-white" />
+              <Target className="h-5 w-5" />
             </div>
-            <div>
+            <div className="text-left">
               <CardTitle className="text-gray-800">Monthly Budget</CardTitle>
               <CardDescription className="text-gray-600">Track your spending progress</CardDescription>
             </div>
           </div>
           {!isEditing && (
-            <Button
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   < Button
               variant="ghost"
               size="sm"
               onClick={() => setIsEditing(true)}
-              className="rounded-xl hover:bg-white/50"
+              className="rounded-xl hover:bg-white/10 cursor-pointer"
+              
             >
               <Edit3 className="h-4 w-4" />
             </Button>
+                </TooltipTrigger>
+                <TooltipContent
+      className="bg-muted text-foreground px-3 py-1 text-sm rounded-md shadow-md"
+    >
+      Edit your budget
+    </TooltipContent>
+               
+              </Tooltip>
+             
+            </TooltipProvider>
+            
           )}
         </div>
       </CardHeader>
@@ -129,86 +146,104 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
                 className="pl-10 rounded-2xl border-chingu-peach-200 focus:border-chingu-peach-400 bg-white/80 backdrop-blur-sm"
               />
             </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={updateBudgetLoading}
-                className="flex-1 bg-gradient-to-r from-chingu-lavender-400 to-chingu-sky-400 hover:from-chingu-lavender-500 hover:to-chingu-sky-500 text-white rounded-2xl"
-              >
-                {updateBudgetLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </>
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={updateBudgetLoading}
-                className="rounded-2xl border-chingu-peach-200 hover:bg-chingu-peach-50 bg-transparent"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+    <div className="flex gap-2">
+  <Button
+    size="sm"
+    onClick={handleSave}
+    disabled={updateBudgetLoading}
+    className={`flex-1 text-white rounded-2xl transition-colors ${
+      updateBudgetLoading
+        ? "bg-gray-600 cursor-not-allowed"
+        : "bg-gray-900 hover:bg-gray-700"
+    }`}
+  >
+    {updateBudgetLoading ? (
+      <>
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+        Saving...
+      </>
+    ) : (
+      <>
+        <Save className="h-4 w-4 mr-2" />
+        Save
+      </>
+    )}
+  </Button>
+
+  <Button
+    size="sm"
+    variant="outline"
+    onClick={handleCancel}
+    disabled={updateBudgetLoading}
+    className={`rounded-2xl border border-gray-400 transition-colors ${
+      updateBudgetLoading
+        ? "text-gray-400 cursor-not-allowed"
+        : "hover:bg-gray-100 text-black"
+    }`}
+  >
+    <X className="h-4 w-4" />
+  </Button>
+</div>
+
+
           </div>
         )}
 
         {/* Progress Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Spent this month</span>
-            <span className="font-semibold text-gray-800">${currentExpenses.toFixed(2)}</span>
-          </div>
+  <div className="flex items-center justify-between text-sm">
+    <span className="text-gray-600">Spent this month</span>
+    <span className="font-semibold text-gray-800">${currentExpenses.toFixed(2)}</span>
+  </div>
 
-          <div className="relative">
-            <Progress
-              value={Math.min(percentageUsed, 100)}
-              className="h-4 rounded-full bg-gradient-to-r from-chingu-peach-100 to-chingu-mint-100"
-            />
-            <div
-              className={`absolute top-0 left-0 h-4 rounded-full transition-all duration-500 ${
-                isOverBudget
-                  ? "bg-gradient-to-r from-red-400 to-pink-400"
-                  : "bg-gradient-to-r from-chingu-peach-400 to-chingu-mint-400"
-              }`}
-              style={{ width: `${Math.min(percentageUsed, 100)}%` }}
-            />
-          </div>
+ <div className="relative">
+  <Progress
+    value={Math.min(percentageUsed, 100)}
+    className="h-4 rounded-full bg-gray-200 [&>div]:bg-transparent [&>div]:hidden"
+  />
+  
+  {/* Your custom fill */}
+  <div
+    className={`absolute top-0 left-0 h-4 rounded-full transition-all duration-500 ${
+      percentageUsed <= 30
+        ? "bg-gradient-to-r from-green-300 to-yellow-300"
+        : percentageUsed <= 75
+        ? "bg-gradient-to-r from-yellow-300 to-red-300"
+        : "bg-gradient-to-r from-red-400 to-pink-400"
+    }`}
+    style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+  />
+</div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {isOverBudget ? (
-                <TrendingUp className="h-4 w-4 text-red-500" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-emerald-500" />
-              )}
-              <span className={`text-sm font-medium ${isOverBudget ? "text-red-600" : "text-emerald-600"}`}>
-                {isOverBudget
-                  ? `$${(currentExpenses - localBudget).toFixed(2)} over budget`
-                  : `$${remaining.toFixed(2)} remaining`}
-              </span>
-            </div>
-            <Badge
-              className={`rounded-full border-0 ${
-                isOverBudget
-                  ? "bg-gradient-to-r from-red-200 to-pink-200 text-red-700"
-                  : percentageUsed > 80
-                    ? "bg-gradient-to-r from-yellow-200 to-orange-200 text-orange-700"
-                    : "bg-gradient-to-r from-chingu-mint-200 to-emerald-200 text-emerald-700"
-              }`}
-            >
-              {percentageUsed.toFixed(1)}% used
-            </Badge>
-          </div>
-        </div>
+  <div className="flex items-center justify-between">
+    <div className="flex items-center space-x-2">
+      {isOverBudget ? (
+        <TrendingUp className="h-4 w-4 text-red-500" />
+      ) : (
+        <TrendingDown className="h-4 w-4 text-emerald-500" />
+      )}
+      <span className={`text-sm font-medium ${isOverBudget ? "text-red-600" : "text-emerald-600"}`}>
+        {isOverBudget
+          ? `$${(currentExpenses - localBudget).toFixed(2)} over budget`
+          : `$${remaining.toFixed(2)} remaining`}
+      </span>
+    </div>
+
+    {/* Badge Based on % Used */}
+    <Badge
+      className={`rounded-full border-0 ${
+        percentageUsed <= 30
+          ? "bg-gradient-to-r from-green-100 to-yellow-100 text-yellow-700"
+          : percentageUsed <= 75
+          ? "bg-gradient-to-r from-yellow-100 to-red-100 text-red-700"
+          : "bg-gradient-to-r from-red-200 to-pink-200 text-red-700"
+      }`}
+    >
+      {percentageUsed.toFixed(1)}% used
+    </Badge>
+  </div>
+</div>
+
 
         {/* Category Breakdown */}
         {topCategories.length > 0 && (
@@ -227,7 +262,7 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
                 return (
                   <div key={category} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 font-medium">{category}</span>
+                      <span className="text-gray-600 font-medium capitalize">{category}</span>
                       <span className="font-semibold text-gray-800">${amount.toFixed(2)}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">

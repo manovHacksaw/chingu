@@ -108,7 +108,7 @@ export function RecentTransactions({ transactions = [], accounts = [] }: Transac
                     {transaction.type === "INCOME" ? "+" : "-"}$
                     {Number.parseFloat(transaction.amount || 0).toFixed(2)}
                   </p>
-                  <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-slate-700 border-0 rounded-full text-xs">
+                  <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-slate-700 border-0 rounded-full text-xs capitalize">
                     {transaction.category}
                   </Badge>
                 </div>

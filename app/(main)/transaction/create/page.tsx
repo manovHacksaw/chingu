@@ -1,42 +1,31 @@
+
 import { getUserAccounts } from "@/actions/dashboard";
 import { getTransaction } from "@/actions/transactions";
 import AddTransactionForm from "./add-transaction-form";
-import { notFound } from "next/navigation";
 import { defaultCategories } from "@/data/categories";
 
 interface PageProps {
-  searchParams: Promise<{ edit?: string; id?: string }>;
+  searchParams: { edit?: string; id?: string };
 }
 
 const CreateTransactionPage = async ({ searchParams }: PageProps) => {
-  // Await the searchParams Promise
-  const resolvedSearchParams = await searchParams;
-  
-  const { edit,  id } = resolvedSearchParams;
-  
-  console.log("Search params:", resolvedSearchParams);
-  console.log("IS EDIT?", edit, "ID:", id);
-  
-  const isEditMode = edit === "true";
+  const { edit, id } = await searchParams;
+  const isEditMode = edit === "true" && !!id;
   
   const accounts = await getUserAccounts();
-  
   let initialData = null;
   
-  // If in edit mode, fetch the transaction data
-if(isEditMode && id !== null){
-  initialData = await getTransaction(id);
-  console.log(initialData)
-
-}
+  if (isEditMode) {
+    initialData = await getTransaction(id);
+  }
   
   return (
-    <div>
+    <div className=" min-h-screen p-4">
       <AddTransactionForm 
         accounts={accounts}
-        categories = {defaultCategories}
-        editMode = {!!id}
-        initialData = {initialData}
+        categories={defaultCategories}
+        editMode={isEditMode}
+        initialData={initialData}
       />
     </div>
   );
