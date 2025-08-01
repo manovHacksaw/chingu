@@ -3,7 +3,7 @@ import { db } from "../prisma";
 import { inngest } from "./client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import DynamicEmail from "@/emails/template";
-import { includes } from "zod";
+
 
 /**
  * A utility function to check if a date (last alert) is in a previous month.
@@ -99,7 +99,7 @@ export const checkBudgetAlert = inngest.createFunction(
         const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
         // Aggregate total expenses within the date range for the user's default account.
-        const expenses = await db.$transaction.aggregate({
+        const expenses = await db.transaction.aggregate({
           where: {
             userId,
             type: "EXPENSE",
@@ -177,7 +177,7 @@ export const triggerRecurringTransactions = inngest.createFunction(
     // Fetch all 'COMPLETED' transactions that are marked as recurring templates
     // and are due to be processed today (or are overdue).
     const recurringTxTemplates = await step.run("fetch-due-recurring-transactions", async () => {
-      return db.$transaction.findMany({
+      return db.transaction.findMany({
         where: {
           isRecurring: true,
           status: "COMPLETED", // These are the original templates
@@ -195,7 +195,7 @@ export const triggerRecurringTransactions = inngest.createFunction(
         
         // Create a new transaction instance based on the template.
         // It's set to 'PENDING' and linked back to the original template.
-        await db.$transaction.create({
+        await db.transaction.create({
           data: {
             type: template.type,
             amount: template.amount,
@@ -255,7 +255,7 @@ export const processRecurringTransactions = inngest.createFunction(
 
     // Step 1: Finalize the pending transaction by marking it as 'COMPLETED'.
     await step.run(`complete-transaction-${transactionId}`, async () => {
-      return db.$transaction.update({
+      return db.transaction.update({
         where: { id: transactionId },
         data: { 
             status: "COMPLETED",
@@ -271,7 +271,7 @@ export const processRecurringTransactions = inngest.createFunction(
     // This ensures it will be picked up again by the `triggerRecurringTransactions` function
     // in the next cycle.
     await step.run(`update-template-${recurringTemplateId}`, async () => {
-      return db.$transaction.update({
+      return db.transaction.update({
         where: { id: recurringTemplateId },
         data: {
           lastProcessed: new Date(),
@@ -374,10 +374,10 @@ export function getRuleBasedFinancialInsights(stats: Awaited<ReturnType<typeof g
   const netSavings = totalIncome - totalExpenses;
   const topCategory = Object.entries(byCategory).sort(([, a], [, b]) => b - a)[0];
 
-  let summary = `In ${monthName}, your financial activity included a total income of ₹${totalIncome.toFixed(2)} and total expenses of ₹${totalExpenses.toFixed(2)}.`;
+  let summary = `In ${monthName}, your financial activity included a total income of ₹${totalIncome.toFixed(2)} and total expenses of $${totalExpenses.toFixed(2)}.`;
   let topCategoryInsight = "No expenses were recorded this month.";
   if (topCategory) {
-    topCategoryInsight = `Your highest spending was in the '${topCategory[0]}' category, amounting to ₹${topCategory[1].toFixed(2)}.`;
+    topCategoryInsight = `Your highest spending was in the '${topCategory[0]}' category, amounting to $ ${topCategory[1].toFixed(2)}.`;
   }
   let savingsInsight = `This resulted in a net saving of ₹${netSavings.toFixed(2)}. Keep up the great work! 👍`;
   if (netSavings < 0) {
