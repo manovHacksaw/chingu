@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { transactionSchema } from "@/lib/schema";
 import { useFetch } from "@/hooks/use-fetch";
-import { createTransaction, updateTransaction } from "@/actions/transactions";
+import { createTransaction, updateTransaction, scanReceipt } from "@/actions/transactions";
 import { toast } from "sonner";
 
 // UI Components
@@ -20,13 +20,123 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, DollarSign, ArrowUpRight, ArrowDownLeft } from "lucide-react";
-import {ReceiptScanner} from "./receipt-scanner";
+import { CalendarIcon, Loader2, DollarSign, ArrowUpRight, ArrowDownLeft, ScanLine } from "lucide-react";
+
+/*
+* GeminiStar Component
+* A simple SVG component for the Gemini AI star logo.
+*/
+const GeminiStar = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor: '#4285F4'}} />
+                <stop offset="100%" style={{stopColor: '#9B72CB'}} />
+            </linearGradient>
+        </defs>
+        <path d="M12 2L9.46 9.46L2 12L9.46 14.54L12 22L14.54 14.54L22 12L14.54 9.46L12 2Z" fill="url(#gemini-gradient)"/>
+    </svg>
+);
+
+/*
+* ReceiptScanner Component
+* A minimal, dotted-border component for uploading and scanning receipts.
+*/
+const ReceiptScanner = ({ onDataScanned }) => {
+  const fileInputRef = useRef(null);
+  const [fileName, setFileName] = useState(null);
+  const [fileError, setFileError] = useState(null);
+  const {
+    loading: scanReceiptLoading,
+    fn: scanReceiptFn,
+    data: scannedData,
+    error,
+  } = useFetch(scanReceipt);
+
+  const handleFileChange = async (event) => {
+    const selectedFile = event.target.files?.[0];
+    setFileError(null); // Reset file-specific error on new selection
+
+    if (!selectedFile) return;
+
+    // Restrict file size to 5MB
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      const errorMsg = "File is too large. Please select a file under 5MB.";
+      setFileError(errorMsg);
+      toast.error("Upload Failed", { description: errorMsg });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Reset the file input
+      }
+      return;
+    }
+    
+    setFileName(selectedFile.name);
+    try {
+      await scanReceiptFn(selectedFile);
+    } catch (err) {
+      console.error("[ReceiptScanner] Error during scan:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (scannedData && scannedData.success && scannedData.data && onDataScanned) {
+      onDataScanned(scannedData.data);
+    }
+  }, [scannedData, onDataScanned]);
+
+  return (
+    <div
+      className="relative"
+      onClick={() => !scanReceiptLoading && fileInputRef.current?.click()}
+    >
+      <input
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={scanReceiptLoading}
+      />
+      <div className={cn(
+        "flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-2xl text-center transition-colors duration-200",
+        scanReceiptLoading 
+          ? "border-slate-300 bg-slate-50/80" 
+          : "border-slate-300 cursor-pointer hover:border-slate-400 hover:bg-slate-50/50",
+        fileError && "border-red-500 bg-red-50/50" // Add red border on file error
+      )}>
+        {scanReceiptLoading ? (
+          <>
+            <Loader2 className="h-8 w-8 text-slate-500 animate-spin" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">Scanning...</p>
+            <p className="text-xs text-slate-500 truncate max-w-full px-4">{fileName}</p>
+          </>
+        ) : (
+          <>
+            <ScanLine className="h-8 w-8 text-slate-400" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">Scan a Receipt</p>
+            <p className="text-xs text-slate-500">Click to upload an image or PDF (Max 5MB)</p>
+          </>
+        )}
+      </div>
+      {(error || fileError) && !scanReceiptLoading && (
+        <p className="text-sm text-red-500 mt-2 text-center">
+          Scan failed: {fileError || error.message || "Please try a different file."}
+        </p>
+      )}
+      <div className="flex items-center justify-center gap-2 mt-3 text-xs text-slate-500">
+        <GeminiStar />
+        <span>Powered by Gemini AI</span>
+      </div>
+    </div>
+  );
+};
 
 
 const AddTransactionForm = ({ accounts, categories, editMode = false, initialData }) => {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
 
   const editId = editMode ? initialData?.id : null;
 
@@ -41,7 +151,16 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
     clearErrors,
   } = useForm({
     resolver: zodResolver(transactionSchema),
-    defaultValues: {
+    defaultValues: editMode && initialData ? {
+      type: initialData.type,
+      amount: String(initialData.amount),
+      description: initialData.description || "",
+      accountId: initialData.accountId || accounts?.find((a) => a.isDefault)?.id || accounts?.[0]?.id || "",
+      category: initialData.category || "",
+      date: new Date(initialData.date),
+      isRecurring: initialData.isRecurring || false,
+      recurringInterval: initialData.recurringInterval || undefined,
+    } : {
       type: "EXPENSE",
       amount: "",
       description: "",
@@ -53,16 +172,23 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
     },
   });
 
-  // Populate form when in edit mode
+  // Populate form when in edit mode - only run once when component mounts
   useEffect(() => {
-    if (editMode && initialData) {
+    if (editMode && initialData && !isFormInitialized) {
+      console.log("INITIAL DATA", initialData);
       reset({
-        ...initialData,
+        type: initialData.type,
         amount: String(initialData.amount),
+        description: initialData.description || "",
+        accountId: initialData.accountId || accounts?.find((a) => a.isDefault)?.id || accounts?.[0]?.id || "",
+        category: initialData.category || "",
         date: new Date(initialData.date),
+        isRecurring: initialData.isRecurring || false,
+        recurringInterval: initialData.recurringInterval || undefined,
       });
+      setIsFormInitialized(true);
     }
-  }, [editMode, initialData, reset]);
+  }, [editMode, initialData, reset, accounts, isFormInitialized]);
 
   const { loading, fn: submitTransaction } = useFetch(
     editMode ? updateTransaction : createTransaction
@@ -72,13 +198,27 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
   const isRecurring = watch("isRecurring");
 
   // Filter categories based on the selected transaction type
-  const availableCategories = categories.filter(c => c.type === type).map(c => c.name);
+  const availableCategories = categories?.filter(c => c.type === type).map(c => c.name) || [];
 
-  // When transaction type changes, reset the category field
+  // When transaction type changes, reset the category field (but not during initial load in edit mode)
   useEffect(() => {
-    setValue("category", "", { shouldValidate: false });
-    clearErrors("category");
-  }, [type, setValue, clearErrors]);
+    // Skip category reset during initial form population in edit mode
+    if (editMode && !isFormInitialized) {
+      return;
+    }
+    
+    // Don't reset category if in edit mode and the type hasn't changed from initial
+    if (editMode && initialData && initialData.type === type) {
+      return;
+    }
+    
+    // Only reset category if it's not valid for the current type
+    const currentCategory = watch("category");
+    if (currentCategory && !availableCategories.includes(currentCategory)) {
+      setValue("category", "", { shouldValidate: false });
+      clearErrors("category");
+    }
+  }, [type, setValue, clearErrors, editMode, initialData, isFormInitialized, availableCategories, watch]);
 
   const onSubmit = async (data) => {
     const result = editMode
@@ -128,9 +268,9 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
                 : "bg-gradient-to-br from-red-400 to-pink-500"
             }`}>
                 {type === "INCOME" ? (
-                    <ArrowDownLeft className="h-6 w-6 text-white" />
-                ) : (
                     <ArrowUpRight className="h-6 w-6 text-white" />
+                ) : (
+                    <ArrowDownLeft className="h-6 w-6 text-white" />
                 )}
             </div>
             <div>
@@ -148,7 +288,6 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
         {!editMode && (
           <div className="mb-8">
             <ReceiptScanner onDataScanned={(data) => {
-              console.log("receipt scanned: ", data)
               if (data.type) setValue('type', data.type, { shouldValidate: true });
               if (data.amount) setValue('amount', String(data.amount), { shouldValidate: true });
               if (data.description) setValue('description', data.description, { shouldValidate: true });

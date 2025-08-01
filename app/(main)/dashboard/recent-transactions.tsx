@@ -82,9 +82,10 @@ export function RecentTransactions({ transactions = [], accounts = [] }: Transac
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-800 truncate">
-                      {transaction.description || transaction.category}
-                    </p>
+                   <p className="font-semibold text-slate-800">
+  {(transaction.description || transaction.category).slice(0, 12)}{(transaction.description || transaction.category).length > 12 && '...'}
+</p>
+
                     <div className="flex items-center space-x-2 mt-1">
                       <p className="text-sm text-slate-600">{account?.name || "Unknown Account"}</p>
                       <span className="text-slate-400">•</span>
