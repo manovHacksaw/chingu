@@ -3,7 +3,7 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { success } from "zod";
+
 
 export async function getCurrentBudget(accountId: string) {
   try {
@@ -53,7 +53,7 @@ export async function getCurrentBudget(accountId: string) {
   }
 }
 
-export async function updateBudget(amount) {
+export async function updateBudget(amount: number) {
     try {
          const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
@@ -89,7 +89,7 @@ export async function updateBudget(amount) {
          console.error("updateBudget error:", error);
     return {
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
     }
     

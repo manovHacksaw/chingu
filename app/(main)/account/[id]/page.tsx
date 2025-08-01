@@ -55,7 +55,11 @@ const StatsCardSkeleton = () => (
 
 const Account = async ({ params }: { params: { id: string } }) => {
   const { id } = await params
-  const accountData = await getAccountWithTransactions(id)
+  const response = await getAccountWithTransactions(id)
+if (!response.success) {
+  notFound()
+}
+const accountData = response.data
 
   if (!accountData) {
     notFound()
