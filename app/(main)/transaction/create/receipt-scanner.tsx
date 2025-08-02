@@ -48,7 +48,7 @@ export const ReceiptScanner = ({ onDataScanned }) => {
       onDataScanned(scannedData.data);
       console.log("RECEIVED", scannedData.data)
     }
-  }, [scannedData]);
+  }, [scannedData, onDataScanned]);
 
   return (
     <div
