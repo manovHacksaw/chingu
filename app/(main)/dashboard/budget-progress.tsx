@@ -67,7 +67,7 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
     try {
       await updateBudgetFn(newBudget)
       setLocalBudget(Number.parseFloat(newBudget))
-      toast.success("🎉 Budget updated successfully!", {
+      toast.success(" Budget updated successfully!", {
         description: "Your monthly budget has been updated.",
       })
       setIsEditing(false)

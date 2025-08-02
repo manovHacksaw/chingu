@@ -371,13 +371,15 @@ export async function getMonthlyStats(userId: string, month: Date) {
 export function getRuleBasedFinancialInsights(stats: Awaited<ReturnType<typeof getMonthlyStats>>, monthName: string) {
   // ... (the original logic from your `generateFinancialInsights` function)
   const { totalIncome, totalExpenses, byCategory } = stats;
-  const netSavings = totalIncome - totalExpenses;
-  const topCategory = Object.entries(byCategory).sort(([, a], [, b]) => b - a)[0];
+  const income = Number(totalIncome) || 0;
+  const expenses = Number(totalExpenses) || 0;
+  const netSavings = income - expenses;
+  const topCategory = Object.entries(byCategory).sort(([, a], [, b]) => Number(b) - Number(a))[0];
 
-  let summary = `In ${monthName}, your financial activity included a total income of ₹${totalIncome.toFixed(2)} and total expenses of $${totalExpenses.toFixed(2)}.`;
+  let summary = `In ${monthName}, your financial activity included a total income of ₹${income.toFixed(2)} and total expenses of $${expenses.toFixed(2)}.`;
   let topCategoryInsight = "No expenses were recorded this month.";
   if (topCategory) {
-    topCategoryInsight = `Your highest spending was in the '${topCategory[0]}' category, amounting to $ ${topCategory[1].toFixed(2)}.`;
+    topCategoryInsight = `Your highest spending was in the '${topCategory[0]}' category, amounting to $ ${Number(topCategory[1]).toFixed(2)}.`;
   }
   let savingsInsight = `This resulted in a net saving of ₹${netSavings.toFixed(2)}. Keep up the great work! 👍`;
   if (netSavings < 0) {

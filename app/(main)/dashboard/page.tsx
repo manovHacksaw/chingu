@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Target, Wallet, TrendingUp, BarChart3 } from 'lucide-react'
 
-import { CreateAccountDrawer } from "./create-account-drawer"
+
 import { UserAccounts } from "./user-accounts"
 import { getDashboardData, getUserAccounts } from "@/actions/dashboard"
 import { getCurrentBudget } from "@/actions/budget"
@@ -13,6 +13,7 @@ import { DashboardStats } from "./dashboard-stats"
 import { RecentTransactions } from "./recent-transactions"
 import { FinancialInsights } from "./financial-insights"
 import { SpendingTrends } from "./spending-trends"
+import { CreateAccountDrawer } from "./create-account-drawer"
 
 // Enhanced loading components
 const StatsCardSkeleton = () => (
@@ -54,7 +55,7 @@ const Dashboard = async () => {
               <p className="text-slate-600">Manage your financial accounts</p>
             </div>
           </div>
-          <CreateAccountDrawer />
+          <CreateAccountDrawer > </CreateAccountDrawer>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Suspense

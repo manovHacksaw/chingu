@@ -1,12 +1,11 @@
-import { RecurringInterval } from "@prisma/client"
-import {z} from "zod"
+import { z } from "zod"
+
 export const accountSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["CURRENT", "SAVINGS"]),
-  balance: z.coerce.number().min(0, "Balance must be 0 or greater"),
+  balance: z.string().min(1, "Initial balance is required"),
   isDefault: z.boolean().default(false),
 });
-
 
 export const transactionSchema = z
   .object({
@@ -30,12 +29,12 @@ export const transactionSchema = z
     (data) => {
       // If it's a recurring transaction, an interval must be selected.
       if (data.isRecurring && !data.recurringInterval) {
-        return false;
+        return false
       }
-      return true;
+      return true
     },
     {
       message: "Frequency is required for recurring transactions.",
       path: ["recurringInterval"], // Specify which field the error belongs to
-    }
-  );
+    },
+  )

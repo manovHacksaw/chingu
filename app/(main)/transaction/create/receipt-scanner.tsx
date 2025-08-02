@@ -5,6 +5,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { Loader2, ScanLine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 export const ReceiptScanner = ({ onDataScanned }) => {
   const fileInputRef = useRef(null);
