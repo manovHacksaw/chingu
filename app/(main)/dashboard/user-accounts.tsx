@@ -128,7 +128,7 @@ export const UserAccounts = ({ accounts }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-2xl font-bold text-slate-800 mb-1">
-                    ${Number.parseFloat(account.balance).toFixed(2)}
+                    <BalanceAmount amount={account.balance} />
                   </div>
                   <p className="text-sm text-slate-600">{account._count?.transactions || 0} transactions</p>
                 </div>
