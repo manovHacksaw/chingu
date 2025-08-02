@@ -93,11 +93,11 @@ const NotFound = () => {
               404
             </h1>
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 font-rounded">
-              Oops! Chingu can't find this page
+              Oops! Chingu can&apos;t find this page
             </h2>
             <p className="text-gray-600 text-lg leading-relaxed max-w-md mx-auto">
               Looks like this page went on a spending spree and disappeared! 
-              Don't worry, Chingu is here to help you get back on track.
+              Don&apos;t worry, Chingu is here to help you get back on track.
             </p>
           </div>
 
@@ -140,9 +140,9 @@ const NotFound = () => {
           {/* Fun Quote */}
           <div className="mt-8 p-4 bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl border border-pink-200">
             <p className="text-gray-700 italic">
-              "Even the best budget trackers sometimes lose their way! 💸✨"
+              &quot;Even the best budget trackers sometimes lose their way! 💸✨&quot;
             </p>
-            <p className="text-sm text-gray-500 mt-2">— Chingu's Philosophy</p>
+            <p className="text-sm text-gray-500 mt-2">— Chingu&apos;s Philosophy</p>
           </div>
         </div>
 

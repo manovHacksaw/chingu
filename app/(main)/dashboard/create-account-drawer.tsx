@@ -34,7 +34,7 @@ export function CreateAccountDrawer() {
     defaultValues: {
       name: "",
       type: "CURRENT",
-      balance: "",
+      balance: 0,
       isDefault: false,
     },
   })

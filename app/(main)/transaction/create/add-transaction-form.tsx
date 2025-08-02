@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -198,7 +198,9 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
   const isRecurring = watch("isRecurring");
 
   // Filter categories based on the selected transaction type
-  const availableCategories = categories?.filter(c => c.type === type).map(c => c.name) || [];
+  const availableCategories = useMemo(() => {
+    return categories?.filter(c => c.type === type).map(c => c.name) || [];
+  }, [categories, type]);
 
   // When transaction type changes, reset the category field (but not during initial load in edit mode)
   useEffect(() => {
@@ -287,7 +289,7 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
         {/* Receipt Scanner - only show in create mode */}
         {!editMode && (
           <div className="mb-8">
-            <ReceiptScanner onDataScanned={(data) => {
+            <ReceiptScanner onDataScanned={useCallback((data) => {
               if (data.type) setValue('type', data.type, { shouldValidate: true });
               if (data.amount) setValue('amount', String(data.amount), { shouldValidate: true });
               if (data.description) setValue('description', data.description, { shouldValidate: true });
@@ -297,7 +299,7 @@ const AddTransactionForm = ({ accounts, categories, editMode = false, initialDat
                   if (matchedCategory) setValue('category', matchedCategory, { shouldValidate: true });
               }
               toast.success('Receipt Scanned!', { description: 'Form has been pre-filled with extracted data.' });
-            }} />
+            }, [setValue, availableCategories])} />
           </div>
         )}
 
