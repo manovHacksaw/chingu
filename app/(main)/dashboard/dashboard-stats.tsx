@@ -115,7 +115,8 @@ export function DashboardStats({ accounts = [], transactions = [] }: DashboardSt
     if (suffix === "%") {
       return `${value.toFixed(1)}${suffix}`;
     }
-    return `${prefix}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
+    // Currency values will be handled by CurrencyDisplay component
+    return value;
   };
 
   const getTrendIcon = (trend: string) => {
