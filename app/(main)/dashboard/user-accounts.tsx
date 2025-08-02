@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { useFetch } from "@/hooks/use-fetch"
-import { CreditCard, Wallet, PiggyBank, Star } from "lucide-react"
+import { CreditCard, Wallet, PiggyBank, Star, Plus } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
+import { CreateAccountDrawer } from "./create-account-drawer"
 
 export const UserAccounts = ({ accounts }) => {
   const [accountList, setAccountList] = useState(accounts)
@@ -148,6 +149,48 @@ export const UserAccounts = ({ accounts }) => {
           </Card>
         )
       })}
+
+      {/* Create New Account Card */}
+      <CreateAccountDrawer>
+        <Card className="group relative overflow-hidden border-2 border-dashed border-slate-300 hover:border-blue-400 hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50 backdrop-blur-sm cursor-pointer">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <Plus className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-slate-800 group-hover:text-blue-700 transition-colors">
+                    Create New Account
+                  </CardTitle>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <p className="text-sm text-slate-600">
+                      Add a new account to track your finances
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-slate-800 mb-1">
+                  Get Started
+                </div>
+                <p className="text-sm text-slate-600">Click to create account</p>
+              </div>
+
+              <div className="flex flex-col items-end space-y-2">
+                <div className="px-3 py-1 bg-white/50 rounded-full border border-slate-200 text-xs text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-700 group-hover:border-blue-300 transition-all duration-300">
+                  New
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </CreateAccountDrawer>
     </>
   )
 }
