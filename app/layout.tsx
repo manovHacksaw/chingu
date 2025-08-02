@@ -6,7 +6,6 @@ import Header from "@/components/header";
 import {ClerkProvider} from "@clerk/nextjs"
 import { Toaster } from "sonner";
 
-const inter = Inter({subsets: ["latin"]})
 const poppins = Poppins({subsets: ["latin"], weight: ["500"]})
 
 export const metadata: Metadata = {
