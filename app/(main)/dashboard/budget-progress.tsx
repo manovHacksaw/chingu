@@ -60,7 +60,7 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
     )
 
   const topCategories = Object.entries(categoryBreakdown)
-    .sort(([, a], [, b]) => b - a)
+    .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 4)
 
   const handleSave = async () => {
@@ -251,7 +251,8 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
             <h4 className="text-sm font-semibold text-gray-700">Top Spending Categories</h4>
             <div className="space-y-3">
               {topCategories.map(([category, amount], index) => {
-                const categoryPercentage = localBudget > 0 ? (amount / localBudget) * 100 : 0
+                const amt = amount as number
+                const categoryPercentage = localBudget > 0 ? (amt / localBudget) * 100 : 0
                 const colors = [
                   "from-red-300 to-pink-300",
                   "from-blue-300 to-cyan-300",
@@ -263,7 +264,7 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
                   <div key={category} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 font-medium capitalize">{category}</span>
-                      <span className="font-semibold text-gray-800">${amount.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-800">${amt.toFixed(2)}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div

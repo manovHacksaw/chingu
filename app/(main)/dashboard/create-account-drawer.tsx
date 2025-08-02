@@ -26,14 +26,11 @@ import { createAccount } from "@/actions/dashboard"
 import { accountSchema } from "@/lib/schema"
 import { useFetch } from "@/hooks/use-fetch"
 
-
 export function CreateAccountDrawer() {
   const [open, setOpen] = useState(false)
-
-
+  // eslint-disable-next-line
   const form = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
-    
     defaultValues: {
       name: "",
       type: "CURRENT",
@@ -42,34 +39,27 @@ export function CreateAccountDrawer() {
     },
   })
 
- 
+  const { data: newAccount, error: createAccountError, fn: createAccountFn, loading: createAccountLoading } = useFetch(createAccount);
 
-  const {data: newAccount, error: createAccountError, fn: createAccountFn, loading: createAccountLoading} = useFetch(createAccount);
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof accountSchema>) {
     console.log(values)
-    
     await createAccountFn(values)
-    
   }
 
-   useEffect(()=>{
-      if(createAccountError){
-        toast.error(createAccountError.message || "Failed to create account")
-      }
+  useEffect(() => {
+    if (createAccountError) {
+      toast.error(createAccountError.message || "Failed to create account")
+    }
   }, [createAccountError])
 
-
-  useEffect(()=>{
-    if(newAccount && !createAccountLoading){
+  useEffect(() => {
+    if (newAccount && !createAccountLoading) {
       form.reset();
-      toast.success("Account Created Sucessfuly!")
+      toast.success("Account Created Successfully!")
       setOpen(false);
     }
-  }, [createAccountLoading, newAccount])
+  }, [createAccountLoading, newAccount, form])
 
-
-  
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
@@ -161,7 +151,7 @@ export function CreateAccountDrawer() {
                   className="bg-gradient-to-r from-orange-400 to-pink-400 hover:from-orange-500 hover:to-pink-500"
                 >
                   {createAccountLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {createAccountLoading ? ("Loading"):  ("Create Account")}  
+                  {createAccountLoading ? "Loading" : "Create Account"}
                 </Button>
                 <DrawerClose asChild>
                   <Button variant="outline">Cancel</Button>

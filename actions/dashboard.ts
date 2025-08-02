@@ -4,7 +4,14 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server"
 import { revalidatePath } from "next/cache";
 
-const serializeAccount = (obj) => {
+type Account = {
+  balance?: { toNumber: () => number };
+  createdAt?: Date;
+  updatedAt?: Date;
+  [key: string]: any;
+};
+
+const serializeAccount = (obj: Account) => {
   return {
     ...obj,
     balance: obj.balance?.toNumber(),
@@ -13,7 +20,13 @@ const serializeAccount = (obj) => {
   };
 };
 
-export async function createAccount(data) {
+type CreateAccountData = {
+    balance: string ;
+    isDefault?: boolean;
+    [key: string]: any;
+};
+
+export async function createAccount(data: CreateAccountData) {
     try {
         const { userId } = await auth();
         if (!userId) throw new Error("Unauthorized");
@@ -62,8 +75,12 @@ export async function createAccount(data) {
 
         return { success: true, data: serializedAccount };
 
-    } catch (error) {
-        throw new Error(error.message);
+    } catch (error: unknown) {
+         if (error instanceof Error) {
+    throw new Error(error.message);
+  } else {
+    console.error("Unknown error", error);
+  }
     }
 }
 
@@ -92,8 +109,12 @@ export async function getUserAccounts() {
 
     return    JSON.parse(JSON.stringify(userAccounts)) ;
 
-  } catch (error) {
-    throw new Error(error.message);
+  } catch (error: unknown) {
+     if (error instanceof Error) {
+    throw new Error(error.message); // safe
+  } else {
+    console.error("Unknown error", error);
+  }
   }
 }
 

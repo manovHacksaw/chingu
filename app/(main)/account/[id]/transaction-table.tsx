@@ -134,6 +134,12 @@ const TransactionTable: FC<TransactionTableProps> = ({ transactions }) => {
       filtered.sort((a, b) => {
         const valA = a[sortConfig.key]
         const valB = b[sortConfig.key]
+
+        // Handle nullish values first
+        if (valA == null && valB == null) return 0
+        if (valA == null) return sortConfig.direction === "ascending" ? -1 : 1
+        if (valB == null) return sortConfig.direction === "ascending" ? 1 : -1
+
         if (valA < valB) return sortConfig.direction === "ascending" ? -1 : 1
         if (valA > valB) return sortConfig.direction === "ascending" ? 1 : -1
         return 0

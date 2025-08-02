@@ -1,18 +1,41 @@
 "use client"
 
 import { useMemo } from "react"
+import { LucideIcon, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Target, Calendar, DollarSign, PieChart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Target, Calendar, DollarSign, PieChart } from 'lucide-react'
+// 1. Define strong types for props to replace 'any'
+interface Transaction {
+  date: string | Date;
+  type: "INCOME" | "EXPENSE";
+  amount: string | number;
+  category?: string;
+}
 
 interface FinancialInsightsProps {
-  accounts: any[]
-  transactions: any[]
+  accounts: any[]; // Left as any since it's not used in calculations
+  transactions: Transaction[];
 }
+
+// Define a type for the insight cards for better consistency
+interface InsightCard {
+  type: "warning" | "success" | "info";
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action: string;
+  color: string;
+  bgColor: string;
+}
+
 
 export function FinancialInsights({ accounts, transactions }: FinancialInsightsProps) {
   const insights = useMemo(() => {
+    if (transactions.length === 0) {
+      return null;
+    }
+
     const currentDate = new Date()
     const currentMonth = currentDate.getMonth()
     const currentYear = currentDate.getFullYear()
@@ -25,15 +48,16 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
     
     const currentMonthExpenses = currentMonthTransactions
       .filter(t => t.type === "EXPENSE")
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0)
     
     const currentMonthIncome = currentMonthTransactions
       .filter(t => t.type === "INCOME")
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0)
     
     // Previous month data
-    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1
-    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear
+    const prevMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const prevMonth = prevMonthDate.getMonth()
+    const prevYear = prevMonthDate.getFullYear()
     
     const prevMonthTransactions = transactions.filter((t) => {
       const transactionDate = new Date(t.date)
@@ -42,19 +66,20 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
     
     const prevMonthExpenses = prevMonthTransactions
       .filter(t => t.type === "EXPENSE")
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0)
     
     // Category analysis
     const categorySpending = currentMonthTransactions
       .filter(t => t.type === "EXPENSE")
       .reduce((acc, t) => {
         const category = t.category || "Other"
-        acc[category] = (acc[category] || 0) + parseFloat(t.amount || 0)
+        acc[category] = (acc[category] || 0) + Number(t.amount || 0)
         return acc
       }, {} as Record<string, number>)
     
+    // 2. Fix the sort function syntax
     const topCategory = Object.entries(categorySpending)
-      .sort(([,a], [,b]) => b - a)[0]
+      .sort(([, aValue], [, bValue]) => bValue - aValue)[0]
     
     // Spending patterns
     const dailyAverageSpending = currentMonthExpenses / currentDate.getDate()
@@ -77,8 +102,10 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
     }
   }, [accounts, transactions])
   
-  const getInsightCards = () => {
-    const cards = []
+  const getInsightCards = (): InsightCard[] => {
+    if (!insights) return [];
+
+    const cards: InsightCard[] = []
     
     // Spending trend insight
     if (insights.expenseGrowth > 20) {
@@ -114,7 +141,7 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
         color: "from-blue-500 to-indigo-500",
         bgColor: "from-blue-50 to-indigo-50"
       })
-    } else if (insights.savingsRate < 10) {
+    } else if (insights.savingsRate < 10 && insights.currentMonthIncome > 0) {
       cards.push({
         type: "warning",
         icon: TrendingDown,
@@ -126,10 +153,10 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
       })
     }
     
-    // Top spending category insight
+    // 3. This error is now fixed because 'topCategory' is correctly typed
     if (insights.topCategory) {
       const [category, amount] = insights.topCategory
-      const percentage = (amount / insights.currentMonthExpenses) * 100
+      const percentage = insights.currentMonthExpenses > 0 ? (amount / insights.currentMonthExpenses) * 100 : 0;
       cards.push({
         type: "info",
         icon: PieChart,
@@ -146,7 +173,7 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
   
   const insightCards = getInsightCards()
   
-  if (transactions.length === 0) {
+  if (!insights) {
     return (
       <Card className="bg-white/70 backdrop-blur-sm border border-slate-200/50 shadow-lg rounded-2xl">
         <CardHeader>
@@ -155,7 +182,7 @@ export function FinancialInsights({ accounts, transactions }: FinancialInsightsP
             Financial Insights
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-8">
+        <CardContent className="p-6">
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <TrendingUp className="h-8 w-8 text-slate-400" />

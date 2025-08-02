@@ -21,7 +21,7 @@ export async function deleteTransaction(transactionId: string) {
     if (!user) throw new Error("User Not Found");
 
     // We must perform these operations in a transaction to ensure data integrity
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Find the transaction to get its details (amount, type, accountId)
       const transaction = await tx.transaction.findFirst({
         where: {
@@ -74,7 +74,7 @@ export async function bulkDeleteTransaction(transactionIds: string[]) {
     const user = await db.user.findUnique({ where: { clerkUserId } });
     if (!user) throw new Error("User Not Found");
 
-    await db.$transaction(async (tx) => {
+    await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Find all transactions to be deleted that belong to the user
       const transactionsToDelete = await tx.transaction.findMany({
         where: {
@@ -185,7 +185,7 @@ console.log("PASSED ARCJET")
     // Calculate balance change (EXPENSE = negative, INCOME = positive)
     const balanceChange = validatedData.type === "EXPENSE" ? amount.negated() : amount;
 
-    const transaction = await db.$transaction(async (tx) => {
+    const transaction = await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create the transaction
       const newTransaction = await tx.transaction.create({
         data: {
@@ -246,9 +246,9 @@ console.log("PASSED ARCJET")
   }
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-export async function scanReceipt(file) {
+export async function scanReceipt(file: File) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
@@ -325,7 +325,7 @@ Return only:
 }
 
 
-export async function getTransaction(id){
+export async function getTransaction(id: string){
    const { userId: clerkUserId } = await auth();
     if (!clerkUserId) throw new Error("Unauthorized");
 
@@ -390,7 +390,7 @@ export async function updateTransaction(id: string, data: any) {
     const netBalanceChange = newBalanceChange - oldBalanceChange;
 
     // Step 5: Execute transaction update and account balance adjustment atomically
-    const updatedTransaction = await db.$transaction(async (tx) => {
+    const updatedTransaction = await db.$transaction(async (tx: Prisma.TransactionClient) => {
       // Update transaction record
       const updatedTx = await tx.transaction.update({
         where: {
@@ -424,22 +424,30 @@ export async function updateTransaction(id: string, data: any) {
     // Step 6: Return the updated transaction data
     return {success: true, updatedData: JSON.parse(JSON.stringify(updatedTransaction))};
 
-  } catch (error) {
+  } catch (error : unknown) {
     // Step 7: Handle and rethrow any errors
-    
-    console.error("Update Transaction Error:", error);
+    if(error instanceof Error){
+console.error("Update Transaction Error:", error);
     return {sucess: false, error: error.message}
+    } else{
+      throw new Error("Some Unknown Error Occured")
+    }
+    
+    
   }
 }
 /**
  * Calculate the next recurring date from a given start date and interval
- * @param {Date | string} startDate - The base date to calculate from
- * @param {string} interval - One of: "DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "YEARLY"
- * @returns {Date} - The next recurring date
+ * @param startDate - The base date to calculate from
+ * @param interval - One of: "DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "YEARLY"
+ * @returns The next recurring date
  */
-function calculateNextRecurringDate(startDate, interval) {
+function calculateNextRecurringDate(
+  startDate: Date | string,
+  interval: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY"
+): Date {
   const date = new Date(startDate); // use passed date instead of current
-  if (isNaN(date)) throw new Error("Invalid startDate");
+  if (isNaN(date.getTime())) throw new Error("Invalid startDate");
 
   switch (interval.toUpperCase()) {
     case "DAILY":

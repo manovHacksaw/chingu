@@ -161,7 +161,7 @@ export const defaultCategories = [
   },
 ];
 
-export const categoryColors = defaultCategories.reduce((acc, category) => {
+export const categoryColors = defaultCategories.reduce<Record<string, string>>((acc, category) => {
   acc[category.id] = category.color;
   return acc;
 }, {});

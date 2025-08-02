@@ -46,10 +46,12 @@ const DATE_RANGES = {
   "2M": { label: "Last 2 Months", days: 60 },
   "6M": { label: "Last 6 Months", days: 180 },
   ALL: { label: "All Time", days: null },
-}
+} as const
+
+type DateRangeKey = keyof typeof DATE_RANGES
 
 const AccountChart: FC<AccountChartProps> = ({ transactions }) => {
-  const [dateRange, setDateRange] = useState("1M")
+  const [dateRange, setDateRange] = useState<DateRangeKey>("1M")
   const [chartType, setChartType] = useState("bar")
 
   const filteredData = useMemo(() => {
@@ -156,7 +158,7 @@ const AccountChart: FC<AccountChartProps> = ({ transactions }) => {
 
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center space-x-2">
-            <Select value={dateRange} onValueChange={setDateRange}>
+            <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRangeKey)}>
               <SelectTrigger className="w-40 rounded-2xl border-slate-200 bg-white/80 backdrop-blur-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
                 <SelectValue />
               </SelectTrigger>
