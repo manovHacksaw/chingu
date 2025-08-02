@@ -374,7 +374,7 @@ export function getRuleBasedFinancialInsights(stats: Awaited<ReturnType<typeof g
   const netSavings = totalIncome - totalExpenses;
   const topCategory = Object.entries(byCategory).sort(([, a], [, b]) => b - a)[0];
 
-  let summary = `In ${monthName}, your financial activity included a total income of ₹${totalIncome.toFixed(2)} and total expenses of $${totalExpenses.toFixed(2)}.`;
+  const summary = `In ${monthName}, your financial activity included a total income of ₹${totalIncome.toFixed(2)} and total expenses of $${totalExpenses.toFixed(2)}.`;
   let topCategoryInsight = "No expenses were recorded this month.";
   if (topCategory) {
     topCategoryInsight = `Your highest spending was in the '${topCategory[0]}' category, amounting to $ ${topCategory[1].toFixed(2)}.`;
