@@ -4,6 +4,7 @@ import { updateDefaultAccount } from "@/actions/accounts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { BalanceAmount } from "@/components/ui/currency"
 import { useFetch } from "@/hooks/use-fetch"
 import { CreditCard, Wallet, PiggyBank, Star, Plus } from "lucide-react"
 import Link from "next/link"
@@ -127,7 +128,7 @@ export const UserAccounts = ({ accounts }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-2xl font-bold text-slate-800 mb-1">
-                    ${Number.parseFloat(account.balance).toFixed(2)}
+                    <BalanceAmount amount={account.balance} />
                   </div>
                   <p className="text-sm text-slate-600">{account._count?.transactions || 0} transactions</p>
                 </div>

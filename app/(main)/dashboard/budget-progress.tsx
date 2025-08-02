@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { CurrencyDisplay } from "@/components/ui/currency"
 import { Target, TrendingUp, TrendingDown, DollarSign, Edit3, Save, X } from "lucide-react"
 import { useFetch } from "@/hooks/use-fetch"
 import { updateBudget } from "@/actions/budget"
@@ -128,7 +129,9 @@ const BudgetProgress = ({ initialBudget, currentExpenses, accounts, transactions
         {/* Budget Amount Section */}
         {!isEditing ? (
           <div className="text-center space-y-2">
-            <div className="text-3xl font-bold text-gray-800">${localBudget.toFixed(2)}</div>
+            <div className="text-3xl font-bold text-gray-800">
+              <CurrencyDisplay amount={localBudget} />
+            </div>
             <p className="text-sm text-gray-600">Monthly Budget</p>
           </div>
         ) : (

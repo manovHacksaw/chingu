@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CurrencyDisplay } from "@/components/ui/currency";
 import { TrendingUp, TrendingDown, DollarSign, Target, CreditCard, PiggyBank, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 interface DashboardStatsProps {
@@ -114,7 +115,8 @@ export function DashboardStats({ accounts = [], transactions = [] }: DashboardSt
     if (suffix === "%") {
       return `${value.toFixed(1)}${suffix}`;
     }
-    return `${prefix}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
+    // Currency values will be handled by CurrencyDisplay component
+    return value;
   };
 
   const getTrendIcon = (trend: string) => {
@@ -165,7 +167,11 @@ export function DashboardStats({ accounts = [], transactions = [] }: DashboardSt
             <CardContent className="space-y-3">
               <div className="space-y-1">
                 <div className="text-3xl font-bold text-gray-900">
-                  {formatValue(stat.value, stat.prefix, stat.suffix)}
+                  {stat.suffix === "%" ? (
+                    `${stat.value.toFixed(1)}${stat.suffix}`
+                  ) : (
+                    <CurrencyDisplay amount={stat.value} />
+                  )}
                 </div>
                 
                 {stat.change !== null && (

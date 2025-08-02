@@ -1,6 +1,7 @@
 "use client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { IncomeAmount, ExpenseAmount } from "@/components/ui/currency"
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -101,14 +102,13 @@ export function RecentTransactions({ transactions = [], accounts = [] }: Transac
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <p
-                    className={`text-xl font-bold mb-1 ${
-                      transaction.type === "INCOME" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {transaction.type === "INCOME" ? "+" : "-"}$
-                    {Number.parseFloat(transaction.amount || 0).toFixed(2)}
-                  </p>
+                  <div className="text-xl font-bold mb-1">
+                    {transaction.type === "INCOME" ? (
+                      <IncomeAmount amount={transaction.amount} />
+                    ) : (
+                      <ExpenseAmount amount={transaction.amount} />
+                    )}
+                  </div>
                   <Badge className="bg-gradient-to-r from-blue-100 to-indigo-100 text-slate-700 border-0 rounded-full text-xs capitalize">
                     {transaction.category}
                   </Badge>
