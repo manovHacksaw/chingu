@@ -110,3 +110,16 @@ enum AccountType {
   SAVINGS
   OTHER
 }
+
+enum Currency {
+  USD
+  EUR
+  INR
+  GBP
+  JPY
+  CAD
+  AUD
+  CHF
+  CNY
+  SEK
+}
