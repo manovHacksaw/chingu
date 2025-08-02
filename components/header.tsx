@@ -1,7 +1,7 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Pen } from "lucide-react"
+import { LayoutDashboard, Pen, Settings } from "lucide-react"
 import { checkUser } from "@/lib/check-user"
 
 const Header = async() => {
