@@ -32,7 +32,12 @@ const Header = async() => {
             </Link>
             <Link href={"/transaction/create"}>
             <Button ><Pen/> <span> Add Transaction</span> </Button>
-            
+
+            </Link>
+            <Link href={"/settings"}>
+            <Button variant={"outline"}> <Settings/>
+            <span> Settings</span>
+            </Button>
             </Link>
             <UserButton  appearance={{elements: {
               avatarBox: "w-14 h-14"
