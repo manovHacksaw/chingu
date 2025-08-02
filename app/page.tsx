@@ -1,4 +1,4 @@
-import Header from "@/components/header"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -50,9 +50,11 @@ export default function LandingPage() {
 
           <div className="relative">
             <div className="relative z-10">
-              <img
+              <Image
                 src="/placeholder.svg?height=600&width=400"
                 alt="Chingu mascot with mobile app"
+                width={400}
+                height={600}
                 className="w-full max-w-md mx-auto rounded-3xl shadow-2xl"
               />
             </div>
@@ -128,9 +130,11 @@ export default function LandingPage() {
               <h3 className="text-2xl font-bold text-gray-800 mb-4">See Chingu in Action</h3>
               <p className="text-gray-600 mb-8">Watch how easy it is: Snap. Track. Done.</p>
               <div className="relative">
-                <img
+                <Image
                   src="/placeholder.svg?height=400&width=600"
                   alt="Chingu demo video"
+                  width={600}
+                  height={400}
                   className="w-full rounded-2xl shadow-lg"
                 />
                 <Button
@@ -175,9 +179,11 @@ export default function LandingPage() {
           ].map((step, index) => (
             <div key={index} className="text-center">
               <div className="relative mb-8">
-                <img
+                <Image
                   src={`/placeholder.svg?height=300&width=300&query=${step.image}`}
                   alt={step.title}
+                  width={300}
+                  height={300}
                   className="w-full max-w-xs mx-auto rounded-2xl shadow-lg"
                 />
                 <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-orange-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
@@ -230,11 +236,13 @@ export default function LandingPage() {
                     <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
                   ))}
                 </div>
-                <p className="text-gray-700 mb-6 italic">"{testimonial.quote}"</p>
+                <p className="text-gray-700 mb-6 italic">&quot;{testimonial.quote}&quot;</p>
                 <div className="flex items-center">
-                  <img
+                  <Image
                     src={`/placeholder.svg?height=50&width=50&query=${testimonial.avatar}`}
                     alt={testimonial.name}
+                    width={50}
+                    height={50}
                     className="w-12 h-12 rounded-full mr-4"
                   />
                   <div>
@@ -254,9 +262,11 @@ export default function LandingPage() {
           <Card className="max-w-2xl mx-auto bg-gradient-to-br from-green-100 to-blue-100 border-0">
             <CardContent className="p-12">
               <div className="mb-8">
-                <img
+                <Image
                   src="/placeholder.svg?height=100&width=100"
                   alt="Celebrating Chingu"
+                  width={100}
+                  height={100}
                   className="w-24 h-24 mx-auto mb-6"
                 />
               </div>
@@ -345,7 +355,7 @@ export default function LandingPage() {
           <div className="border-t border-orange-100 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-600 text-sm">© 2024 Chingu. Made with love for better financial habits.</p>
             <div className="mt-4 md:mt-0">
-              <img src="/placeholder.svg?height=40&width=40" alt="Sleeping Chingu" className="w-10 h-10" />
+              <Image src="/placeholder.svg?height=40&width=40" alt="Sleeping Chingu" width={40} height={40} className="w-10 h-10" />
               <p className="text-xs text-gray-500 mt-1">See you soon 💤</p>
             </div>
           </div>
