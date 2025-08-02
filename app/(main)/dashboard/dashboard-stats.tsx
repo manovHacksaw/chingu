@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CurrencyDisplay } from "@/components/ui/currency";
 import { TrendingUp, TrendingDown, DollarSign, Target, CreditCard, PiggyBank, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 interface DashboardStatsProps {
