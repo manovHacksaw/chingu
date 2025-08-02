@@ -26,12 +26,14 @@ export default function RootLayout({
       <body
         className={` ${poppins.className}`}
       >
-        <Header/>
-     <main className="min-h-screen">
-       {children}
-       </main>  
-       <Toaster/>
-       <Footer/>
+        <CurrencyProvider>
+          <Header/>
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <Toaster/>
+          <Footer/>
+        </CurrencyProvider>
       </body>
     </html>
     </ClerkProvider>
