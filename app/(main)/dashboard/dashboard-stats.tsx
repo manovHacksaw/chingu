@@ -167,7 +167,11 @@ export function DashboardStats({ accounts = [], transactions = [] }: DashboardSt
             <CardContent className="space-y-3">
               <div className="space-y-1">
                 <div className="text-3xl font-bold text-gray-900">
-                  {formatValue(stat.value, stat.prefix, stat.suffix)}
+                  {stat.suffix === "%" ? (
+                    `${stat.value.toFixed(1)}${stat.suffix}`
+                  ) : (
+                    <CurrencyDisplay amount={stat.value} />
+                  )}
                 </div>
                 
                 {stat.change !== null && (
