@@ -1,5 +1,3 @@
-
-
 import {
   Html,
   Head,
@@ -13,17 +11,20 @@ import {
   Hr,
 } from "@react-email/components";
 import * as React from "react";
+import { formatCurrency, Currency, DEFAULT_CURRENCY } from "../lib/currency";
 
 type EmailProps = {
   userName?: string;
   type: "budget-alert" | "other-alert" | "monthly-report";
   data?: Record<string, any>;
+  currency?: Currency;
 };
 
 export default function DynamicEmail({
   userName = "",
   type,
   data = {},
+  currency = DEFAULT_CURRENCY,
 }: EmailProps) {
   if (type === "budget-alert") {
     const spent = data.spent ?? 0;
@@ -46,8 +47,8 @@ export default function DynamicEmail({
               Hi {userName},
             </Text>
             <Text style={{ fontSize: "16px" }}>
-              You've spent <strong>₹{spent.toFixed(2)}</strong> out of your
-              monthly budget of <strong>₹{limit.toFixed(2)}</strong>.
+              You've spent <strong>{formatCurrency(spent, currency)}</strong> out of your
+              monthly budget of <strong>{formatCurrency(limit, currency)}</strong>.
             </Text>
             <Text style={{ fontSize: "16px", color: "#e63946" }}>
               That's <strong>{percentUsed.toFixed(1)}%</strong> of your budget.
@@ -102,19 +103,19 @@ export default function DynamicEmail({
                 <Column style={summaryBox}>
                   <Text style={summaryLabel}>Total Income</Text>
                   <Text style={{ ...summaryValue, color: "#2e7d32" }}>
-                    ₹{totalIncome.toFixed(2)}
+                    {formatCurrency(totalIncome, currency)}
                   </Text>
                 </Column>
                 <Column style={summaryBox}>
                   <Text style={summaryLabel}>Total Expenses</Text>
                   <Text style={{ ...summaryValue, color: "#d32f2f" }}>
-                    ₹{totalExpenses.toFixed(2)}
+                    {formatCurrency(totalExpenses, currency)}
                   </Text>
                 </Column>
                 <Column style={summaryBox}>
                   <Text style={summaryLabel}>Net Savings</Text>
                   <Text style={summaryValue}>
-                    ₹{netSavings.toFixed(2)}
+                    {formatCurrency(netSavings, currency)}
                   </Text>
                 </Column>
               </Row>
@@ -137,7 +138,7 @@ export default function DynamicEmail({
                     <Text style={categoryText}>{category}</Text>
                   </Column>
                   <Column align="right">
-                    <Text style={categoryAmount}>₹{(amount as number).toFixed(2)}</Text>
+                    <Text style={categoryAmount}>{formatCurrency(amount as number, currency)}</Text>
                   </Column>
                 </Row>
               ))

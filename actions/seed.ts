@@ -24,8 +24,8 @@ interface CategoryItem {
 
 // --- CONSTANTS ---
 // Replace these with actual IDs from your development database.
-const ACCOUNT_ID = "4fdbcc2c-305b-4649-837a-ea564727a8d4";
-const USER_ID = "53110e47-6e44-48b5-ac4d-1e9710040338";
+const ACCOUNT_ID = "06d647d8-c56f-4971-85f4-f00ef561b229";
+const USER_ID = "e97f6827-a0de-4e44-9f64-1aaa599b0c78";
 
 // Strongly type the CATEGORIES object.
 const CATEGORIES: Record<TransactionType, CategoryItem[]> = {
