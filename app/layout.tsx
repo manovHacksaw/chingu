@@ -5,6 +5,7 @@ import Footer from "@/components/footer";
 import Header from "@/components/header";
 import {ClerkProvider} from "@clerk/nextjs"
 import { Toaster } from "sonner";
+import { CurrencyProvider } from "@/components/providers/currency-provider";
 
 const inter = Inter({subsets: ["latin"]})
 const poppins = Poppins({subsets: ["latin"], weight: ["500"]})
@@ -25,12 +26,14 @@ export default function RootLayout({
       <body
         className={` ${poppins.className}`}
       >
-        <Header/>
-     <main className="min-h-screen">
-       {children}
-       </main>  
-       <Toaster/>
-       <Footer/>
+        <CurrencyProvider>
+          <Header/>
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <Toaster/>
+          <Footer/>
+        </CurrencyProvider>
       </body>
     </html>
     </ClerkProvider>

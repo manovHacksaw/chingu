@@ -21,6 +21,7 @@ model User {
   name         String?
   email        String        @unique
   imageUrl     String?
+  currency     Currency      @default(USD)
   transactions Transaction[]
   accounts     Account[]
   budgets      Budget[]
@@ -108,4 +109,17 @@ enum AccountType {
   CURRENT
   SAVINGS
   OTHER
+}
+
+enum Currency {
+  USD
+  EUR
+  INR
+  GBP
+  JPY
+  CAD
+  AUD
+  CHF
+  CNY
+  SEK
 }

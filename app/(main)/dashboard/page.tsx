@@ -1,7 +1,9 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Target, Wallet, TrendingUp, BarChart3 } from 'lucide-react'
+import { Target, Wallet } from 'lucide-react'
 
 
 import { UserAccounts } from "./user-accounts"
