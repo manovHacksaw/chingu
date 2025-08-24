@@ -2,10 +2,17 @@ import { getUserAccounts } from "@/actions/dashboard";
 import { getTransaction } from "@/actions/transactions";
 import AddTransactionForm from "./add-transaction-form";
 import { defaultCategories } from "@/data/categories";
+import { Metadata } from "next";
 
 interface PageProps {
   searchParams: Promise<{ edit?: string; id?: string }>;
 }
+
+export const metadata: Metadata = {
+  title: "Add Transaction - Chingu",
+  description: "Create or edit transactions with Chingu's smart expense tracker.",
+};
+
 
 const CreateTransactionPage = async ({
   searchParams,

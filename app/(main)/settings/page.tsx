@@ -1,7 +1,13 @@
+import type { Metadata } from 'next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CurrencySetupCompact } from '@/components/onboarding/currency-setup'
-import { Separator } from '@/components/ui/separator'
 import { Globe, User, Bell, Shield } from 'lucide-react'
+
+
+export const metadata: Metadata = {
+  title: 'Settings - Chingu',
+  description: 'Manage your Chingu account preferences and app settings.',
+}
 
 export default function SettingsPage() {
   return (

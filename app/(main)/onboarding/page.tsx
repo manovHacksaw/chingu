@@ -1,4 +1,11 @@
 import { CurrencySetup } from '@/components/onboarding/currency-setup'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Welcome to Chingu - Setup',
+  description: 'Set up your Chingu account and start your financial journey.',
+}
+
 
 export default function OnboardingPage() {
   return (
