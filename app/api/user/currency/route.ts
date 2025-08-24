@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid currency code', details: validation.error.errors },
+        { error: 'Invalid currency code', details: validation.error.issues },
         { status: 400 }
       )
     }

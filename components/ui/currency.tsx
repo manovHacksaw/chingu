@@ -1,7 +1,7 @@
 'use client'
 
 import { useCurrency } from '@/hooks/use-currency-store'
-import { formatCurrency, formatCurrencyCompact, Currency } from '@/lib/currency'
+import { formatCurrency, formatCurrencyCompact, type Currency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 
 interface CurrencyProps {
@@ -109,5 +109,5 @@ export function CompactCurrency({ amount, ...props }: Omit<CurrencyProps, 'compa
   )
 }
 
-// Legacy component name for backward compatibility
-export const Currency = CurrencyDisplay
+// ✅ Fixed: alias without conflicting with Currency type
+export { CurrencyDisplay as Currency }
